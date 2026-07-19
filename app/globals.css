@@ -1,0 +1,323 @@
+:root {
+  --ink: #241c12;
+  --ink-light: #372a1a;
+  --panel: #2f2416;
+  --parchment: #e8dcc0;
+  --parchment-light: #f4ede0;
+  --parchment-dark: #d4c5a0;
+  --gold: #b8863b;
+  --gold-light: #d4a24f;
+  --gold-dark: #8a6428;
+  --danger: #7a2e2e;
+  --danger-light: #9c3d3d;
+  --success: #3f6b3a;
+  --success-light: #518a4a;
+  --text-on-dark: #f4ede0;
+  --text-on-parchment: #241c12;
+  --text-muted-dark: #b9a880;
+  --text-muted-light: #7a6a4a;
+  --radius: 6px;
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --font-display: 'Cinzel', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--ink);
+  background-image: radial-gradient(circle at 50% -10%, var(--ink-light), var(--ink) 55%);
+  background-attachment: fixed;
+  color: var(--text-on-dark);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  color: var(--gold-light);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0 0 12px;
+}
+
+.panel h1,
+.panel h2,
+.panel h3,
+.card h1,
+.card h2,
+.card h3 {
+  color: #6b4a1a;
+}
+
+a {
+  color: var(--gold-light);
+}
+
+a:hover {
+  color: var(--gold);
+}
+
+/* Layout */
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 20px 80px;
+}
+
+.container-narrow {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 48px 20px 80px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--text-muted-dark);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--gold-light);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted-dark);
+}
+
+.divider {
+  border: none;
+  border-top: 1px dashed var(--gold-dark);
+  margin: 20px 0;
+}
+
+/* Panels & cards: perkament oppervlakken op de donkere achtergrond */
+
+.panel {
+  background: var(--parchment);
+  color: var(--text-on-parchment);
+  border: 2px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.panel + .panel,
+.panel-dark + .panel-dark {
+  margin-top: 16px;
+}
+
+.panel-dark {
+  background: var(--panel);
+  border: 1px solid var(--gold-dark);
+  border-radius: var(--radius);
+  padding: 18px;
+  color: var(--text-on-dark);
+}
+
+.card {
+  background: var(--parchment);
+  color: var(--text-on-parchment);
+  border: 2px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  text-decoration: none;
+  display: block;
+  transition: border-color 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--gold-light);
+}
+
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--parchment);
+  color: var(--text-on-parchment);
+  border: 1px solid var(--gold-dark);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+/* Knoppen: lichte bevel, alsof het interface-knoppen uit een spel zijn */
+
+.btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: var(--radius);
+  padding: 9px 18px;
+  cursor: pointer;
+  border: 1px solid var(--gold-dark);
+  background: linear-gradient(180deg, var(--gold-light), var(--gold-dark));
+  color: #2b1d0a;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--parchment);
+  border: 1px solid var(--gold-dark);
+  box-shadow: none;
+}
+
+.btn-secondary.on-parchment {
+  color: var(--text-on-parchment);
+}
+
+.btn-danger {
+  background: linear-gradient(180deg, #a85050, var(--danger));
+  color: #fff;
+  border-color: #5a1f1f;
+}
+
+.btn-success {
+  background: linear-gradient(180deg, #5f9c58, var(--success));
+  color: #fff;
+  border-color: #2a4a26;
+}
+
+.btn-locked {
+  background: linear-gradient(180deg, #8a8478, #5c574c);
+  color: #fff;
+  border-color: #3a362e;
+}
+
+.btn-sm {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: var(--danger-light);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+/* Formuliervelden */
+
+.input,
+select.input,
+textarea.input {
+  font-family: var(--font-body);
+  font-size: 14px;
+  background: var(--parchment-light);
+  border: 1px solid var(--gold-dark);
+  border-radius: 4px;
+  padding: 9px 10px;
+  color: var(--text-on-parchment);
+  width: 100%;
+}
+
+.input:focus,
+select.input:focus {
+  outline: 2px solid var(--gold-light);
+  outline-offset: 1px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-muted-dark);
+}
+
+/* Badges */
+
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.badge-gold {
+  background: var(--gold);
+  color: #2b1d0a;
+}
+
+.badge-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.badge-success {
+  background: var(--success);
+  color: #fff;
+}
+
+.badge-muted {
+  background: var(--parchment-dark);
+  color: var(--text-on-parchment);
+}
+
+/* Tekst */
+
+.text-muted {
+  color: var(--text-muted-dark);
+}
+
+.panel .text-muted,
+.card .text-muted {
+  color: var(--text-muted-light);
+}
+
+.error-text {
+  color: #ff8a8a;
+  font-size: 14px;
+}
+
+.stat {
+  font-family: var(--font-mono);
+}
+
+/* Avatar */
+
+.avatar {
+  border-radius: 50%;
+  display: block;
+}
