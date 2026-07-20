@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import InviteLinkButton from '@/components/InviteLinkButton'
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   bingo: 'Bingo',
@@ -24,11 +25,15 @@ export default async function CommunityPage({
     redirect('/')
   }
 
-  const { data: community } = await supabase
+  const { data: community, error: communityError } = await supabase
     .from('communities')
-    .select('id, name, slug')
+    .select('id, name, slug, logo_url')
     .eq('slug', slug)
     .single()
+
+  if (communityError) {
+    console.error('Fout bij ophalen community:', communityError)
+  }
 
   if (!community) {
     notFound()
@@ -54,7 +59,25 @@ export default async function CommunityPage({
       <Link href="/dashboard" className="back-link">
         &larr; Terug naar dashboard
       </Link>
-      <h1>{community.name}</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {community.logo_url && (
+          <img
+            src={community.logo_url}
+            alt=""
+            width={64}
+            height={64}
+            className="avatar"
+            style={{ border: '2px solid var(--gold)', objectFit: 'cover', flexShrink: 0 }}
+          />
+        )}
+        <h1 style={{ margin: 0 }}>{community.name}</h1>
+      </div>
+
+      {canManageEvents && (
+        <p>
+          <InviteLinkButton slug={slug} />
+        </p>
+      )}
 
       {membership?.role === 'owner' && (
         <p>
