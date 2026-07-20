@@ -40,7 +40,7 @@ export async function POST(
     ? Math.max(team.board_position - roll, 0)
     : Math.min(team.board_position + roll, boardSize)
 
-  const updates: Record<string, unknown> = { board_position: newPosition }
+  const updates: Record<string, unknown> = { board_position: newPosition, can_roll: false }
   if (isPenaltyRoll) {
     updates.pending_penalty = false
   }
