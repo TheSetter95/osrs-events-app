@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import SiteHeader from '@/components/SiteHeader'
 
 export const metadata: Metadata = {
-  title: 'OSRS Events Platform',
+  title: 'Massief Goud Events',
   description: 'Tools voor het organiseren van Bingo, Ganzebord en PvP-toernooien',
 }
 
@@ -21,7 +22,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   )
 }

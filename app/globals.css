@@ -34,12 +34,36 @@ body {
 }
 
 body {
+  position: relative;
   background: var(--ink);
   background-image: radial-gradient(circle at 50% -10%, var(--ink-light), var(--ink) 55%);
   background-attachment: fixed;
   color: var(--text-on-dark);
   font-family: var(--font-body);
   min-height: 100vh;
+}
+
+/* Logo als zacht, doorschijnend watermerk op de achtergrond. De zwarte
+   achtergrond van het logo-bestand "verdwijnt" door mix-blend-mode: screen
+   (zwart heeft geen effect in screen-mode), waardoor alleen het goud
+   vaag doorschemert. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url('/logo.png');
+  background-repeat: no-repeat;
+  background-position: center 20%;
+  background-size: min(55vw, 760px);
+  opacity: 0.08;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
 }
 
 h1,
