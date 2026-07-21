@@ -50,7 +50,7 @@ export default async function MembersPage({
 
   const { data: members } = await supabase
     .from('community_members')
-    .select('id, role, profiles(id, username, avatar_url)')
+    .select('id, role, profiles(id, username, avatar_url, osrs_username)')
     .eq('community_id', community.id)
 
   return (

@@ -22,8 +22,15 @@ export default async function HomePage() {
 
   return (
     <main className="container-narrow" style={{ textAlign: 'center' }}>
+      <img
+        src="/logo.png"
+        alt="Massief Goud logo"
+        width={120}
+        height={120}
+        style={{ borderRadius: 16, margin: '0 auto 16px', display: 'block' }}
+      />
       <p className="eyebrow">Questlog voor je community</p>
-      <h1 style={{ fontSize: 32 }}>OSRS Events Platform</h1>
+      <h1 style={{ fontSize: 32 }}>Massief Goud Events</h1>
 
       {!user ? (
         <>
@@ -43,11 +50,14 @@ export default async function HomePage() {
             />
           )}
           <p>
-            Ingelogd als <strong>{profile?.username ?? user.email}</strong>
+            Ingelogd als <strong>{profile?.osrs_username || profile?.username || user.email}</strong>
           </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/dashboard">
               <button className="btn">Naar dashboard</button>
+            </Link>
+            <Link href="/profiel">
+              <button className="btn btn-secondary">✏️ OSRS-naam instellen</button>
             </Link>
             <LogoutButton />
           </div>

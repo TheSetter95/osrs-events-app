@@ -85,9 +85,11 @@ export default async function EventPage({
   if (creatorIds.length > 0) {
     const { data: creators } = await supabase
       .from('profiles')
-      .select('id, username')
+      .select('id, username, osrs_username')
       .in('id', creatorIds as string[])
-    creatorNames = Object.fromEntries((creators ?? []).map((c) => [c.id, c.username]))
+    creatorNames = Object.fromEntries(
+      (creators ?? []).map((c) => [c.id, c.osrs_username || c.username])
+    )
   }
 
   const { data: myProfile } = await supabase

@@ -6,7 +6,12 @@ import { useRouter } from 'next/navigation'
 type Member = {
   id: string
   role: 'owner' | 'organizer' | 'member'
-  profiles: { id: string; username: string | null; avatar_url: string | null } | null
+  profiles: {
+    id: string
+    username: string | null
+    avatar_url: string | null
+    osrs_username: string | null
+  } | null
 }
 
 type SearchResult = {
@@ -14,6 +19,7 @@ type SearchResult = {
   username: string | null
   avatar_url: string | null
   discord_id: string | null
+  osrs_username: string | null
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -111,7 +117,7 @@ export default function MembersManager({
             <img src={m.profiles.avatar_url} alt="" width={28} height={28} className="avatar" />
           )}
           <span style={{ flex: 1 }}>
-            {m.profiles?.username ?? 'Onbekende gebruiker'}
+            {m.profiles?.osrs_username || m.profiles?.username || 'Onbekende gebruiker'}
             {m.profiles?.id === currentUserId && ' (jij)'}
           </span>
 
@@ -161,7 +167,7 @@ export default function MembersManager({
           {results.map((r) => (
             <div key={r.id} className="card-row">
               {r.avatar_url && <img src={r.avatar_url} alt="" width={24} height={24} className="avatar" />}
-              <span style={{ flex: 1 }}>{r.username ?? 'Onbekend'}</span>
+              <span style={{ flex: 1 }}>{r.osrs_username || r.username || 'Onbekend'}</span>
               <button onClick={() => handleAdd(r.id)} className="btn btn-success btn-sm">
                 Toevoegen als {ROLE_LABELS[newRole]}
               </button>
