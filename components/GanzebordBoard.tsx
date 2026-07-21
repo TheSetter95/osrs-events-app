@@ -18,6 +18,8 @@ type Tile = {
   effect_type: 'geen' | 'terug_dobbelsteen' | 'terug_vast'
   effect_value: number | null
   transferable: boolean
+  image_url: string | null
+  wiki_url: string | null
 }
 
 const COLORS = ['#c0392b', '#2471a3', '#27ae60', '#e08e0b', '#8e44ad', '#16a085']
@@ -186,8 +188,33 @@ export default function GanzebordBoard({
               <span className="stat" style={{ color: tileTask ? 'var(--text-muted-dark)' : '#8a7550' }}>
                 {tileNumber}
               </span>
-              {tileTask && (
-                <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 10 }}>📜</span>
+              {tileTask?.image_url ? (
+                <a
+                  href={tileTask.wiki_url ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    top: 1,
+                    right: 1,
+                    pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
+                  }}
+                >
+                  <img
+                    src={tileTask.image_url}
+                    alt=""
+                    style={{
+                      width: 12,
+                      height: 12,
+                      objectFit: 'contain',
+                    }}
+                  />
+                </a>
+              ) : (
+                tileTask && (
+                  <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 10 }}>📜</span>
+                )
               )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
                 {occupants.map((t) => (

@@ -10,6 +10,8 @@ type Tile = {
   effect_type: 'geen' | 'terug_dobbelsteen' | 'terug_vast'
   effect_value: number | null
   transferable: boolean
+  image_url: string | null
+  wiki_url: string | null
 }
 
 const EFFECT_LABELS: Record<string, string> = {
@@ -30,6 +32,7 @@ export default function GanzebordTilesManager({
   const router = useRouter()
   const [tileNumber, setTileNumber] = useState(1)
   const [description, setDescription] = useState('')
+  const [wikiUrl, setWikiUrl] = useState('')
   const [effectType, setEffectType] = useState<'geen' | 'terug_dobbelsteen' | 'terug_vast'>('geen')
   const [effectValue, setEffectValue] = useState(3)
   const [transferable, setTransferable] = useState(false)
@@ -51,6 +54,7 @@ export default function GanzebordTilesManager({
         effectType,
         effectValue: effectType === 'terug_vast' ? effectValue : null,
         transferable,
+        wikiUrl,
       }),
     })
     const result = await res.json()
@@ -64,6 +68,7 @@ export default function GanzebordTilesManager({
     setDescription('')
     setEffectType('geen')
     setTransferable(false)
+    setWikiUrl('')
     setLoading(false)
     router.refresh()
   }
@@ -83,15 +88,20 @@ export default function GanzebordTilesManager({
           {[...initialTiles]
             .sort((a, b) => a.tile_number - b.tile_number)
             .map((tile) => (
-              <li key={tile.id} style={{ marginBottom: 4 }}>
-                <strong>Vak {tile.tile_number}:</strong> {tile.description}{' '}
-                <span className="text-muted" style={{ fontSize: 12 }}>
-                  ({EFFECT_LABELS[tile.effect_type]}
-                  {tile.transferable ? ', uitdeelbaar' : ''})
+              <li key={tile.id} style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {tile.image_url && (
+                  <img src={tile.image_url} alt="" width={20} height={20} style={{ objectFit: 'contain' }} />
+                )}
+                <span>
+                  <strong>Vak {tile.tile_number}:</strong> {tile.description}{' '}
+                  <span className="text-muted" style={{ fontSize: 12 }}>
+                    ({EFFECT_LABELS[tile.effect_type]}
+                    {tile.transferable ? ', uitdeelbaar' : ''})
+                  </span>
+                  <button onClick={() => handleDelete(tile.id)} className="btn-link" style={{ marginLeft: 8 }}>
+                    verwijder
+                  </button>
                 </span>
-                <button onClick={() => handleDelete(tile.id)} className="btn-link" style={{ marginLeft: 8 }}>
-                  verwijder
-                </button>
               </li>
             ))}
         </ul>
@@ -118,6 +128,14 @@ export default function GanzebordTilesManager({
           placeholder="Omschrijving van de opdracht"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          className="input"
+        />
+
+        <input
+          type="text"
+          placeholder="OSRS Wiki-link voor de afbeelding (optioneel)"
+          value={wikiUrl}
+          onChange={(e) => setWikiUrl(e.target.value)}
           className="input"
         />
 

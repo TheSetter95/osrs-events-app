@@ -8,6 +8,10 @@ import GanzebordConfigForm from '@/components/GanzebordConfigForm'
 import GanzebordTilesManager from '@/components/GanzebordTilesManager'
 import GanzebordLeaderboard from '@/components/GanzebordLeaderboard'
 import GanzebordHistory from '@/components/GanzebordHistory'
+import BingoConfigForm from '@/components/BingoConfigForm'
+import BingoTilesManager from '@/components/BingoTilesManager'
+import BingoBoard from '@/components/BingoBoard'
+import BingoLeaderboard from '@/components/BingoLeaderboard'
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   bingo: 'Bingo',
@@ -73,6 +77,16 @@ export default async function EventPage({
     .select('*')
     .eq('event_id', event.id)
 
+  const { data: bingoTiles } = await supabase
+    .from('bingo_tiles')
+    .select('*')
+    .eq('event_id', event.id)
+
+  const { data: bingoCompletions } = await supabase
+    .from('bingo_completions')
+    .select('tile_id, team_id')
+    .in('tile_id', (bingoTiles ?? []).map((t) => t.id))
+
   const { data: history } = await supabase
     .from('progress_updates')
     .select('id, data, source, created_at, created_by')
@@ -127,7 +141,7 @@ export default async function EventPage({
         </p>
       )}
 
-      {event.type === 'ganzebord' ? (
+      {event.type === 'ganzebord' && (
         <>
           {canManage && (
             <GanzebordConfigForm
@@ -160,11 +174,42 @@ export default async function EventPage({
             creatorNames={creatorNames}
           />
         </>
-      ) : (
+      )}
+
+      {event.type === 'bingo' && (
+        <>
+          {canManage && (
+            <BingoConfigForm
+              eventId={event.id}
+              currentGridSize={(event.config as any)?.gridSize ?? 5}
+            />
+          )}
+          <BingoBoard
+            gridSize={(event.config as any)?.gridSize ?? 5}
+            tiles={(bingoTiles as any) ?? []}
+            teams={(teams as any) ?? []}
+            completions={(bingoCompletions as any) ?? []}
+            canManage={canManage}
+          />
+          <BingoLeaderboard
+            teams={(teams as any) ?? []}
+            completions={(bingoCompletions as any) ?? []}
+            totalTiles={((event.config as any)?.gridSize ?? 5) ** 2}
+          />
+          {canManage && (
+            <BingoTilesManager
+              eventId={event.id}
+              gridSize={(event.config as any)?.gridSize ?? 5}
+              initialTiles={(bingoTiles as any) ?? []}
+            />
+          )}
+        </>
+      )}
+
+      {event.type === 'pvp_toernooi' && (
         <div className="panel-dark" style={{ marginTop: 24, textAlign: 'center' }}>
           <p className="text-muted" style={{ margin: 0 }}>
-            Hier komt de {EVENT_TYPE_LABELS[event.type] ?? event.type}-tool zelf — dat
-            bouwen we in een volgende stap.
+            Hier komt de PvP-toernooi-tool zelf — dat bouwen we in een volgende stap.
           </p>
         </div>
       )}

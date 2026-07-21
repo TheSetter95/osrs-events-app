@@ -13,33 +13,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Je moet ingelogd zijn.' }, { status: 401 })
   }
 
-  const { eventId, tileNumber, description, effectType, effectValue, transferable, wikiUrl } =
-    await request.json()
+  const { eventId, position, title, description, wikiUrl } = await request.json()
 
-  if (!description || typeof description !== 'string' || !description.trim()) {
-    return NextResponse.json({ error: 'Vul een omschrijving in.' }, { status: 400 })
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    return NextResponse.json({ error: 'Vul een titel in.' }, { status: 400 })
   }
 
-  if (!tileNumber || typeof tileNumber !== 'number' || tileNumber < 1) {
+  if (!position || typeof position !== 'number' || position < 1) {
     return NextResponse.json({ error: 'Ongeldig vakjenummer.' }, { status: 400 })
   }
 
   const imageUrl = wikiUrl?.trim() ? await getWikiImageUrl(wikiUrl.trim()) : null
 
   const { data: tile, error } = await supabase
-    .from('board_tiles')
+    .from('bingo_tiles')
     .upsert(
       {
         event_id: eventId,
-        tile_number: tileNumber,
-        description: description.trim(),
-        effect_type: effectType ?? 'geen',
-        effect_value: effectValue ?? null,
-        transferable: !!transferable,
+        position,
+        title: title.trim(),
+        description: description?.trim() || null,
         wiki_url: wikiUrl?.trim() || null,
         image_url: imageUrl,
       },
-      { onConflict: 'event_id,tile_number' }
+      { onConflict: 'event_id,position' }
     )
     .select()
     .single()
