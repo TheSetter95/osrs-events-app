@@ -189,13 +189,18 @@ export default function BingoBoard({
                       key={teamId}
                       title={teams.find((t) => t.id === teamId)?.name}
                       style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
+                        fontSize: 8,
+                        fontWeight: 700,
+                        padding: '1px 4px',
+                        borderRadius: 4,
                         background: teamColor(teamId),
-                        display: 'inline-block',
+                        color: 'white',
+                        whiteSpace: 'nowrap',
+                        lineHeight: 1.4,
                       }}
-                    />
+                    >
+                      {teams.find((t) => t.id === teamId)?.name ?? 'Team'}
+                    </span>
                   ))}
                 </div>
               )}

@@ -36,16 +36,21 @@ export default function TeamsManager({
   const [participantDiscord, setParticipantDiscord] = useState('')
   const [addingParticipant, setAddingParticipant] = useState(false)
 
+  const nextTeamNumber = initialTeams.length + 1
+
   async function handleAddTeam(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    if (!newTeamName.trim()) return
     setAddingTeam(true)
+
+    const fullName = newTeamName.trim()
+      ? `Team ${nextTeamNumber} ${newTeamName.trim()}`
+      : `Team ${nextTeamNumber}`
 
     const res = await fetch('/api/teams', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId, name: newTeamName }),
+      body: JSON.stringify({ eventId, name: fullName }),
     })
     const result = await res.json()
 
@@ -244,10 +249,13 @@ export default function TeamsManager({
       )}
 
       {canManage && (
-        <form onSubmit={handleAddTeam} style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <form onSubmit={handleAddTeam} style={{ display: 'flex', gap: 8, marginTop: 16, alignItems: 'center' }}>
+          <span className="badge badge-gold" style={{ whiteSpace: 'nowrap' }}>
+            Team {nextTeamNumber}
+          </span>
           <input
             type="text"
-            placeholder="Naam nieuw team"
+            placeholder="Extra naam (optioneel)"
             value={newTeamName}
             onChange={(e) => setNewTeamName(e.target.value)}
             className="input"
