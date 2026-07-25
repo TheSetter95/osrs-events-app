@@ -20,6 +20,12 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   pvp_toernooi: 'PvP-toernooi',
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Concept',
+  active: 'Actief',
+  finished: 'Afgerond',
+}
+
 export default async function EventPage({
   params,
 }: {
@@ -146,10 +152,13 @@ export default async function EventPage({
       <Link href={`/communities/${slug}`} className="back-link">
         &larr; Terug naar community
       </Link>
-      <h1>{event.name}</h1>
-      <p className="text-muted">
-        {EVENT_TYPE_LABELS[event.type] ?? event.type} &middot; status: {event.status}
-      </p>
+      <h1>
+        {event.name}{' '}
+        <span className="text-muted" style={{ fontSize: '0.5em', fontWeight: 400 }}>
+          "{STATUS_LABELS[event.status] ?? event.status}"
+        </span>
+      </h1>
+      <p className="text-muted">{EVENT_TYPE_LABELS[event.type] ?? event.type}</p>
 
       {!isBigBoardView && canManage && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -203,14 +212,6 @@ export default async function EventPage({
                 </div>
                 <div>{teamsManagerEl}</div>
               </div>
-
-              {canManage && (
-                <GanzebordTilesManager
-                  eventId={event.id}
-                  boardSize={(event.config as any)?.boardSize ?? 63}
-                  initialTiles={(tiles as any) ?? []}
-                />
-              )}
 
               {canManage && (
                 <div

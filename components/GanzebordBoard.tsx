@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Team = {
@@ -24,21 +24,55 @@ type Tile = {
 }
 
 const COLORS = ['#c0392b', '#2471a3', '#27ae60', '#e08e0b', '#8e44ad', '#16a085']
-const COLS = 10
 
-function getSnakeOrder(total: number, cols: number) {
-  const rows = Math.ceil(total / cols)
-  const order: number[] = []
-  for (let r = 0; r < rows; r++) {
-    const rowNums: number[] = []
-    for (let c = 0; c < cols; c++) {
-      const n = r * cols + c + 1
-      if (n <= total) rowNums.push(n)
+type GridCell = { row: number; col: number }
+
+// Genereert alle cellen van een size×size raster in kloksgewijze spiraalvolgorde,
+// van buiten (linksboven) naar binnen — exact zoals een klassiek ganzebord.
+function generateSpiral(size: number): GridCell[] {
+  const cells: GridCell[] = []
+  let top = 0
+  let bottom = size - 1
+  let left = 0
+  let right = size - 1
+
+  while (top <= bottom && left <= right) {
+    for (let c = left; c <= right; c++) cells.push({ row: top, col: c })
+    top++
+    for (let r = top; r <= bottom; r++) cells.push({ row: r, col: right })
+    right--
+    if (top <= bottom) {
+      for (let c = right; c >= left; c--) cells.push({ row: bottom, col: c })
+      bottom--
     }
-    if (r % 2 === 1) rowNums.reverse()
-    order.push(...rowNums)
+    if (left <= right) {
+      for (let r = bottom; r >= top; r--) cells.push({ row: r, col: left })
+      left++
+    }
   }
-  return order
+  return cells
+}
+
+// Bepaalt de rastergrootte en welke cel bij welk vakjenummer hoort. Het
+// laatste vakje (de finish) krijgt altijd de middelste 2x2-cellen — precies
+// de plek waar een spiraal op een even raster van nature eindigt.
+function computeSpiralLayout(boardSize: number) {
+  let size = 2
+  while (size * size - 4 < boardSize - 1) {
+    size += 2
+  }
+
+  const spiral = generateSpiral(size)
+  const ringCells = spiral.slice(0, size * size - 4)
+  const centerCells = spiral.slice(size * size - 4)
+
+  const tileCells = ringCells.slice(0, boardSize - 1) // vakjes 1 .. boardSize-1
+  const blankCells = ringCells.slice(boardSize - 1) // ongebruikte restcellen (indien niet precies passend)
+
+  const centerRow = Math.min(...centerCells.map((c) => c.row))
+  const centerCol = Math.min(...centerCells.map((c) => c.col))
+
+  return { size, tileCells, blankCells, centerRow, centerCol }
 }
 
 export default function GanzebordBoard({
@@ -71,12 +105,14 @@ export default function GanzebordBoard({
   const [targetTeamId, setTargetTeamId] = useState<string>('')
   const [resolvingPenalty, setResolvingPenalty] = useState(false)
 
-  // Tijdens 'concept' zie je altijd alles; daarna geldt de fog-of-war,
-  // voor iedereen inclusief organizers/owners.
   const allVisible = eventStatus === 'draft'
   const revealedSet = new Set(revealedTileNumbers)
 
-  const tileOrder = getSnakeOrder(boardSize, COLS)
+  const { size, tileCells, blankCells, centerRow, centerCol } = useMemo(
+    () => computeSpiralLayout(boardSize),
+    [boardSize]
+  )
+
   const tilesByNumber: Record<number, Tile> = {}
   for (const tile of tiles) {
     tilesByNumber[tile.tile_number] = tile
@@ -157,15 +193,181 @@ export default function GanzebordBoard({
     router.refresh()
   }
 
+  function renderTile(tileNumber: number, gridArea: React.CSSProperties) {
+    const occupants = teamsByTile[tileNumber] ?? []
+    const isFinish = tileNumber === boardSize
+    const tileTask = tilesByNumber[tileNumber]
+    const isRevealed = allVisible || revealedSet.has(tileNumber)
+    const glowHex = tileTask?.glow_color || null
+
+    if (!isRevealed) {
+      const glowShadow = glowHex
+        ? `0 0 12px 3px ${glowHex}, inset 0 0 10px rgba(0,0,0,0.5)`
+        : `0 0 6px 1px rgba(184, 134, 59, 0.35), inset 0 0 10px rgba(0,0,0,0.5)`
+
+      return (
+        <div
+          key={tileNumber}
+          style={{
+            ...gridArea,
+            border: glowHex ? `1px solid ${glowHex}` : '1px solid var(--gold-dark)',
+            borderRadius: 4,
+            background: 'radial-gradient(circle at 50% 40%, #3a3226, #17130c)',
+            padding: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: glowShadow,
+          }}
+        >
+          <img
+            src="/logo.png"
+            alt=""
+            style={{
+              width: '68%',
+              height: '68%',
+              objectFit: 'contain',
+              opacity: 0.92,
+              filter: glowHex
+                ? `drop-shadow(0 0 4px ${glowHex})`
+                : 'drop-shadow(0 0 3px rgba(184, 134, 59, 0.5))',
+            }}
+          />
+          {occupants.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 2,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 2,
+                justifyContent: 'center',
+              }}
+            >
+              {occupants.map((t) => (
+                <span
+                  key={t.id}
+                  title={t.name}
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: '50%',
+                    background: teamColor(t.id),
+                    color: 'white',
+                    fontSize: 7,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(0,0,0,0.4)',
+                  }}
+                >
+                  {t.name.slice(0, 1).toUpperCase()}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div
+        key={tileNumber}
+        title={tileTask ? tileTask.description : undefined}
+        style={{
+          ...gridArea,
+          border: tileTask ? '1px solid var(--danger-light)' : '1px solid var(--gold-dark)',
+          borderRadius: 4,
+          background: isFinish
+            ? 'linear-gradient(160deg, #ffe9a8, var(--gold-light))'
+            : tileTask
+            ? 'linear-gradient(160deg, #4a3420, #2e2013)'
+            : 'linear-gradient(160deg, #4a463f, #2b2823)',
+          padding: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          fontSize: 10,
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: glowHex ? `0 0 10px 2px ${glowHex}` : 'inset 0 0 6px rgba(0,0,0,0.5)',
+        }}
+      >
+        <span
+          className="stat"
+          style={{
+            color: isFinish ? '#4a3420' : 'var(--gold-light)',
+            fontWeight: 700,
+            textShadow: isFinish ? undefined : '0 1px 2px rgba(0,0,0,0.7)',
+          }}
+        >
+          {isFinish ? '🏁' : tileNumber}
+        </span>
+        {tileTask?.image_url ? (
+          <a
+            href={tileTask.wiki_url ?? undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              top: 1,
+              right: 1,
+              pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
+            }}
+          >
+            <img
+              src={tileTask.image_url}
+              alt=""
+              style={{
+                width: 12,
+                height: 12,
+                objectFit: 'contain',
+              }}
+            />
+          </a>
+        ) : (
+          tileTask && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 10 }}>📜</span>
+        )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
+          {occupants.map((t) => (
+            <span
+              key={t.id}
+              title={t.name}
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: teamColor(t.id),
+                color: 'white',
+                fontSize: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {t.name.slice(0, 1).toUpperCase()}
+            </span>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ marginTop: 24 }}>
-      {/* Het bord zelf */}
+      {/* Het bord zelf: echte spiraal met een 2x2 finish-vakje in het midden */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+          gridTemplateColumns: `repeat(${size}, 1fr)`,
+          gridTemplateRows: `repeat(${size}, 1fr)`,
           gap: 4,
           marginBottom: 20,
+          aspectRatio: '1',
           background: 'linear-gradient(160deg, #2a2318, #17130c)',
           border: '3px solid var(--gold-dark)',
           borderRadius: 'var(--radius)',
@@ -173,172 +375,28 @@ export default function GanzebordBoard({
           boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.5)',
         }}
       >
-        {tileOrder.map((tileNumber) => {
-          const occupants = teamsByTile[tileNumber] ?? []
-          const isFinish = tileNumber === boardSize
-          const tileTask = tilesByNumber[tileNumber]
-          const isRevealed = allVisible || revealedSet.has(tileNumber)
-          const glowHex = tileTask?.glow_color || null
+        {tileCells.map((cell, idx) =>
+          renderTile(idx + 1, {
+            gridColumn: cell.col + 1,
+            gridRow: cell.row + 1,
+          })
+        )}
 
-          if (!isRevealed) {
-            const glowShadow = glowHex
-              ? `0 0 12px 3px ${glowHex}, inset 0 0 10px rgba(0,0,0,0.5)`
-              : `0 0 6px 1px rgba(184, 134, 59, 0.35), inset 0 0 10px rgba(0,0,0,0.5)`
+        {blankCells.map((cell, i) => (
+          <div
+            key={`blank-${i}`}
+            style={{
+              gridColumn: cell.col + 1,
+              gridRow: cell.row + 1,
+              borderRadius: 4,
+              background: 'rgba(0,0,0,0.25)',
+            }}
+          />
+        ))}
 
-            return (
-              <div
-                key={tileNumber}
-                style={{
-                  aspectRatio: '1',
-                  border: glowHex ? `1px solid ${glowHex}` : '1px solid var(--gold-dark)',
-                  borderRadius: 4,
-                  background: 'radial-gradient(circle at 50% 40%, #3a3226, #17130c)',
-                  padding: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  boxShadow: glowShadow,
-                }}
-              >
-                <img
-                  src="/logo.png"
-                  alt=""
-                  style={{
-                    width: '68%',
-                    height: '68%',
-                    objectFit: 'contain',
-                    opacity: 0.92,
-                    filter: glowHex
-                      ? `drop-shadow(0 0 4px ${glowHex})`
-                      : 'drop-shadow(0 0 3px rgba(184, 134, 59, 0.5))',
-                  }}
-                />
-                {occupants.length > 0 && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: 2,
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 2,
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {occupants.map((t) => (
-                      <span
-                        key={t.id}
-                        title={t.name}
-                        style={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: '50%',
-                          background: teamColor(t.id),
-                          color: 'white',
-                          fontSize: 7,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '1px solid rgba(0,0,0,0.4)',
-                        }}
-                      >
-                        {t.name.slice(0, 1).toUpperCase()}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          }
-
-          return (
-            <div
-              key={tileNumber}
-              title={tileTask ? tileTask.description : undefined}
-              style={{
-                aspectRatio: '1',
-                border: tileTask ? '1px solid var(--danger-light)' : '1px solid var(--gold-dark)',
-                borderRadius: 4,
-                background: isFinish
-                  ? 'linear-gradient(160deg, #ffe9a8, var(--gold-light))'
-                  : tileTask
-                  ? 'linear-gradient(160deg, #4a3420, #2e2013)'
-                  : 'linear-gradient(160deg, #4a463f, #2b2823)',
-                padding: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                fontSize: 10,
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: glowHex
-                  ? `0 0 10px 2px ${glowHex}`
-                  : 'inset 0 0 6px rgba(0,0,0,0.5)',
-              }}
-            >
-              <span
-                className="stat"
-                style={{
-                  color: isFinish ? '#4a3420' : 'var(--gold-light)',
-                  fontWeight: 700,
-                  textShadow: isFinish ? undefined : '0 1px 2px rgba(0,0,0,0.7)',
-                }}
-              >
-                {tileNumber}
-              </span>
-              {tileTask?.image_url ? (
-                <a
-                  href={tileTask.wiki_url ?? undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    position: 'absolute',
-                    top: 1,
-                    right: 1,
-                    pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
-                  }}
-                >
-                  <img
-                    src={tileTask.image_url}
-                    alt=""
-                    style={{
-                      width: 12,
-                      height: 12,
-                      objectFit: 'contain',
-                    }}
-                  />
-                </a>
-              ) : (
-                tileTask && (
-                  <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 10 }}>📜</span>
-                )
-              )}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
-                {occupants.map((t) => (
-                  <span
-                    key={t.id}
-                    title={t.name}
-                    style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: '50%',
-                      background: teamColor(t.id),
-                      color: 'white',
-                      fontSize: 8,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {t.name.slice(0, 1).toUpperCase()}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )
+        {renderTile(boardSize, {
+          gridColumn: `${centerCol + 1} / span 2`,
+          gridRow: `${centerRow + 1} / span 2`,
         })}
       </div>
 
