@@ -12,6 +12,7 @@ type Tile = {
   transferable: boolean
   image_url: string | null
   wiki_url: string | null
+  glow_color: string | null
 }
 
 const EFFECT_LABELS: Record<string, string> = {
@@ -36,6 +37,7 @@ export default function GanzebordTilesManager({
   const [effectType, setEffectType] = useState<'geen' | 'terug_dobbelsteen' | 'terug_vast'>('geen')
   const [effectValue, setEffectValue] = useState(3)
   const [transferable, setTransferable] = useState(false)
+  const [glowColor, setGlowColor] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,6 +57,7 @@ export default function GanzebordTilesManager({
         effectValue: effectType === 'terug_vast' ? effectValue : null,
         transferable,
         wikiUrl,
+        glowColor,
       }),
     })
     const result = await res.json()
@@ -69,6 +72,7 @@ export default function GanzebordTilesManager({
     setEffectType('geen')
     setTransferable(false)
     setWikiUrl('')
+    setGlowColor('')
     setLoading(false)
     router.refresh()
   }
@@ -91,6 +95,18 @@ export default function GanzebordTilesManager({
               <li key={tile.id} style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {tile.image_url && (
                   <img src={tile.image_url} alt="" width={20} height={20} style={{ objectFit: 'contain' }} />
+                )}
+                {tile.glow_color && (
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: tile.glow_color,
+                      boxShadow: `0 0 6px 2px ${tile.glow_color}`,
+                      flexShrink: 0,
+                    }}
+                  />
                 )}
                 <span>
                   <strong>Vak {tile.tile_number}:</strong> {tile.description}{' '}
@@ -173,6 +189,48 @@ export default function GanzebordTilesManager({
             Team mag deze straf uitdelen aan een ander team
           </label>
         )}
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 14 }}>
+            <input
+              type="checkbox"
+              checked={!!glowColor}
+              onChange={(e) => setGlowColor(e.target.checked ? '#ffd700' : '')}
+            />
+            Gloed geven aan dit vakje
+          </label>
+
+          {glowColor && (
+            <>
+              <input
+                type="color"
+                value={/^#[0-9a-fA-F]{6}$/.test(glowColor) ? glowColor : '#ffd700'}
+                onChange={(e) => setGlowColor(e.target.value)}
+                style={{
+                  width: 36,
+                  height: 32,
+                  padding: 0,
+                  border: '1px solid var(--gold-dark)',
+                  borderRadius: 4,
+                  background: 'none',
+                  cursor: 'pointer',
+                }}
+              />
+              <input
+                type="text"
+                value={glowColor}
+                onChange={(e) => setGlowColor(e.target.value)}
+                placeholder="#ffd700"
+                className="input"
+                style={{ width: 100 }}
+              />
+            </>
+          )}
+        </div>
+        <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+          De gloed is ook zichtbaar terwijl het vakje nog verborgen is — een hint voor
+          deelnemers dat er iets bijzonders op dit vakje staat.
+        </p>
 
         <button type="submit" disabled={loading || !description.trim()} className="btn" style={{ alignSelf: 'flex-start' }}>
           {loading ? 'Bezig...' : 'Opdracht opslaan'}

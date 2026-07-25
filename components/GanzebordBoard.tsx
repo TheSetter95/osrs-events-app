@@ -20,6 +20,7 @@ type Tile = {
   transferable: boolean
   image_url: string | null
   wiki_url: string | null
+  glow_color: string | null
 }
 
 const COLORS = ['#c0392b', '#2471a3', '#27ae60', '#e08e0b', '#8e44ad', '#16a085']
@@ -47,6 +48,8 @@ export default function GanzebordBoard({
   tiles,
   canManage,
   myTeamIds,
+  eventStatus,
+  revealedTileNumbers,
 }: {
   eventId: string
   boardSize: number
@@ -54,6 +57,8 @@ export default function GanzebordBoard({
   tiles: Tile[]
   canManage: boolean
   myTeamIds: string[]
+  eventStatus: string
+  revealedTileNumbers: number[]
 }) {
   const router = useRouter()
   const [rollingTeamId, setRollingTeamId] = useState<string | null>(null)
@@ -65,6 +70,11 @@ export default function GanzebordBoard({
   const [pending, setPending] = useState<{ team: Team; tile: Tile } | null>(null)
   const [targetTeamId, setTargetTeamId] = useState<string>('')
   const [resolvingPenalty, setResolvingPenalty] = useState(false)
+
+  // Tijdens 'concept' zie je altijd alles; daarna geldt de fog-of-war,
+  // voor iedereen inclusief organizers/owners.
+  const allVisible = eventStatus === 'draft'
+  const revealedSet = new Set(revealedTileNumbers)
 
   const tileOrder = getSnakeOrder(boardSize, COLS)
   const tilesByNumber: Record<number, Tile> = {}
@@ -156,16 +166,92 @@ export default function GanzebordBoard({
           gridTemplateColumns: `repeat(${COLS}, 1fr)`,
           gap: 4,
           marginBottom: 20,
-          background: 'var(--panel)',
-          border: '1px solid var(--gold-dark)',
+          background: 'linear-gradient(160deg, #2a2318, #17130c)',
+          border: '3px solid var(--gold-dark)',
           borderRadius: 'var(--radius)',
-          padding: 8,
+          padding: 10,
+          boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.5)',
         }}
       >
         {tileOrder.map((tileNumber) => {
           const occupants = teamsByTile[tileNumber] ?? []
           const isFinish = tileNumber === boardSize
           const tileTask = tilesByNumber[tileNumber]
+          const isRevealed = allVisible || revealedSet.has(tileNumber)
+          const glowHex = tileTask?.glow_color || null
+
+          if (!isRevealed) {
+            const glowShadow = glowHex
+              ? `0 0 12px 3px ${glowHex}, inset 0 0 10px rgba(0,0,0,0.5)`
+              : `0 0 6px 1px rgba(184, 134, 59, 0.35), inset 0 0 10px rgba(0,0,0,0.5)`
+
+            return (
+              <div
+                key={tileNumber}
+                style={{
+                  aspectRatio: '1',
+                  border: glowHex ? `1px solid ${glowHex}` : '1px solid var(--gold-dark)',
+                  borderRadius: 4,
+                  background: 'radial-gradient(circle at 50% 40%, #3a3226, #17130c)',
+                  padding: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  boxShadow: glowShadow,
+                }}
+              >
+                <img
+                  src="/logo.png"
+                  alt=""
+                  style={{
+                    width: '68%',
+                    height: '68%',
+                    objectFit: 'contain',
+                    opacity: 0.92,
+                    filter: glowHex
+                      ? `drop-shadow(0 0 4px ${glowHex})`
+                      : 'drop-shadow(0 0 3px rgba(184, 134, 59, 0.5))',
+                  }}
+                />
+                {occupants.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 2,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 2,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {occupants.map((t) => (
+                      <span
+                        key={t.id}
+                        title={t.name}
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          background: teamColor(t.id),
+                          color: 'white',
+                          fontSize: 7,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid rgba(0,0,0,0.4)',
+                        }}
+                      >
+                        {t.name.slice(0, 1).toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
           return (
             <div
               key={tileNumber}
@@ -174,7 +260,11 @@ export default function GanzebordBoard({
                 aspectRatio: '1',
                 border: tileTask ? '1px solid var(--danger-light)' : '1px solid var(--gold-dark)',
                 borderRadius: 4,
-                background: isFinish ? 'var(--gold-light)' : tileTask ? '#4a3420' : 'var(--parchment)',
+                background: isFinish
+                  ? 'linear-gradient(160deg, #ffe9a8, var(--gold-light))'
+                  : tileTask
+                  ? 'linear-gradient(160deg, #4a3420, #2e2013)'
+                  : 'linear-gradient(160deg, #4a463f, #2b2823)',
                 padding: 2,
                 display: 'flex',
                 flexDirection: 'column',
@@ -183,9 +273,19 @@ export default function GanzebordBoard({
                 fontSize: 10,
                 position: 'relative',
                 overflow: 'hidden',
+                boxShadow: glowHex
+                  ? `0 0 10px 2px ${glowHex}`
+                  : 'inset 0 0 6px rgba(0,0,0,0.5)',
               }}
             >
-              <span className="stat" style={{ color: tileTask ? 'var(--text-muted-dark)' : '#8a7550' }}>
+              <span
+                className="stat"
+                style={{
+                  color: isFinish ? '#4a3420' : 'var(--gold-light)',
+                  fontWeight: 700,
+                  textShadow: isFinish ? undefined : '0 1px 2px rgba(0,0,0,0.7)',
+                }}
+              >
                 {tileNumber}
               </span>
               {tileTask?.image_url ? (
