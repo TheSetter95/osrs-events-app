@@ -268,6 +268,19 @@ export default function GanzebordBoard({
               ))}
             </div>
           )}
+          <span
+            className="stat"
+            style={{
+              position: 'absolute',
+              bottom: 2,
+              left: 3,
+              fontSize: 9,
+              color: 'rgba(212, 162, 79, 0.85)',
+              textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+            }}
+          >
+            {tileNumber}
+          </span>
         </div>
       )
     }
@@ -296,16 +309,16 @@ export default function GanzebordBoard({
           boxShadow: glowHex ? `0 0 10px 2px ${glowHex}` : 'inset 0 0 6px rgba(0,0,0,0.5)',
         }}
       >
-        <span
-          className="stat"
-          style={{
-            color: isFinish ? '#4a3420' : 'var(--gold-light)',
-            fontWeight: 700,
-            textShadow: isFinish ? undefined : '0 1px 2px rgba(0,0,0,0.7)',
-          }}
-        >
-          {isFinish ? '🏁' : tileNumber}
-        </span>
+        {isFinish && (
+          <span
+            style={{
+              fontSize: 16,
+              textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+            }}
+          >
+            🏁
+          </span>
+        )}
         {tileTask?.image_url ? (
           <a
             href={tileTask.wiki_url ?? undefined}
@@ -353,6 +366,19 @@ export default function GanzebordBoard({
             </span>
           ))}
         </div>
+        <span
+          className="stat"
+          style={{
+            position: 'absolute',
+            bottom: 2,
+            left: 3,
+            fontSize: 9,
+            color: isFinish ? 'rgba(74, 52, 32, 0.75)' : 'rgba(212, 162, 79, 0.85)',
+            textShadow: isFinish ? undefined : '0 1px 2px rgba(0,0,0,0.9)',
+          }}
+        >
+          {tileNumber}
+        </span>
       </div>
     )
   }
