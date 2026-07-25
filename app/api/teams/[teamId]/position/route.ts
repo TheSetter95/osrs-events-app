@@ -60,5 +60,14 @@ export async function PATCH(
     created_by: user.id,
   })
 
+  if (clamped > 0) {
+    await supabase
+      .from('board_tile_reveals')
+      .upsert(
+        { event_id: team.event_id, tile_number: clamped },
+        { onConflict: 'event_id,tile_number', ignoreDuplicates: true }
+      )
+  }
+
   return NextResponse.json({ position: clamped })
 }

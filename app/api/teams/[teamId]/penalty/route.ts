@@ -68,5 +68,14 @@ export async function POST(
     created_by: user.id,
   })
 
+  if (newPosition > 0) {
+    await supabase
+      .from('board_tile_reveals')
+      .upsert(
+        { event_id: team.event_id, tile_number: newPosition },
+        { onConflict: 'event_id,tile_number', ignoreDuplicates: true }
+      )
+  }
+
   return NextResponse.json({ roll, position: newPosition })
 }

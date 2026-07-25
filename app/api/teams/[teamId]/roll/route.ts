@@ -76,6 +76,16 @@ export async function POST(
     created_by: user.id,
   })
 
+  // Onthul dit vakje voorgoed (voor iedereen), ongeacht of het een opdracht heeft
+  if (newPosition > 0) {
+    await supabase
+      .from('board_tile_reveals')
+      .upsert(
+        { event_id: team.event_id, tile_number: newPosition },
+        { onConflict: 'event_id,tile_number', ignoreDuplicates: true }
+      )
+  }
+
   // Bij een strafworp checken we geen vakje-opdracht (voorkomt kettingreacties)
   if (isPenaltyRoll) {
     return NextResponse.json({ roll, position: newPosition, penaltyRoll: true, tile: null })

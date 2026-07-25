@@ -77,6 +77,11 @@ export default async function EventPage({
     .select('*')
     .eq('event_id', event.id)
 
+  const { data: reveals } = await supabase
+    .from('board_tile_reveals')
+    .select('tile_number')
+    .eq('event_id', event.id)
+
   const { data: bingoTiles } = await supabase
     .from('bingo_tiles')
     .select('*')
@@ -156,6 +161,8 @@ export default async function EventPage({
             tiles={(tiles as any) ?? []}
             canManage={canManage}
             myTeamIds={myTeamIds}
+            eventStatus={event.status}
+            revealedTileNumbers={(reveals ?? []).map((r) => r.tile_number)}
           />
           <GanzebordLeaderboard
             teams={(teams as any) ?? []}

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Je moet ingelogd zijn.' }, { status: 401 })
   }
 
-  const { eventId, tileNumber, description, effectType, effectValue, transferable, wikiUrl } =
+  const { eventId, tileNumber, description, effectType, effectValue, transferable, wikiUrl, glowColor } =
     await request.json()
 
   if (!description || typeof description !== 'string' || !description.trim()) {
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
         transferable: !!transferable,
         wiki_url: wikiUrl?.trim() || null,
         image_url: imageUrl,
+        glow_color: glowColor || null,
       },
       { onConflict: 'event_id,tile_number' }
     )
