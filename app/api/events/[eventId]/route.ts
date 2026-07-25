@@ -52,3 +52,29 @@ export async function PATCH(
   return NextResponse.json({ event })
 }
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: { eventId: string } }
+) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Je moet ingelogd zijn.' }, { status: 401 })
+  }
+
+  const { error } = await supabase.from('events').delete().eq('id', params.eventId)
+
+  if (error) {
+    return NextResponse.json(
+      { error: 'Verwijderen mislukt. Ben je organizer/owner van deze community?' },
+      { status: 403 }
+    )
+  }
+
+  return NextResponse.json({ success: true })
+}
+

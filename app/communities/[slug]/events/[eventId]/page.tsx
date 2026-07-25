@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import TeamsManager from '@/components/TeamsManager'
 import EventStatusControl from '@/components/EventStatusControl'
+import DeleteEventButton from '@/components/DeleteEventButton'
 import GanzebordBoard from '@/components/GanzebordBoard'
 import GanzebordConfigForm from '@/components/GanzebordConfigForm'
 import GanzebordTilesManager from '@/components/GanzebordTilesManager'
@@ -128,8 +129,20 @@ export default async function EventPage({
     myTeamIds = (myParticipations ?? []).map((p) => p.team_id as string)
   }
 
+  // Grote-bord-weergave: alleen voor een actief Ganzebord-event
+  const isBigBoardView = event.type === 'ganzebord' && event.status === 'active'
+
+  const teamsManagerEl = (
+    <TeamsManager
+      eventId={event.id}
+      initialTeams={(teams as any) ?? []}
+      initialUnassigned={unassigned ?? []}
+      canManage={canManage}
+    />
+  )
+
   return (
-    <main className="container">
+    <main className={isBigBoardView ? 'container-wide' : 'container'}>
       <Link href={`/communities/${slug}`} className="back-link">
         &larr; Terug naar community
       </Link>
@@ -138,7 +151,14 @@ export default async function EventPage({
         {EVENT_TYPE_LABELS[event.type] ?? event.type} &middot; status: {event.status}
       </p>
 
-      {canManage && <EventStatusControl eventId={event.id} currentStatus={event.status} />}
+      {!isBigBoardView && canManage && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <EventStatusControl eventId={event.id} currentStatus={event.status} />
+          {event.status === 'draft' && (
+            <DeleteEventButton eventId={event.id} communitySlug={slug} />
+          )}
+        </div>
+      )}
 
       {teamsError && (
         <p className="error-text">
@@ -148,12 +168,13 @@ export default async function EventPage({
 
       {event.type === 'ganzebord' && (
         <>
-          {canManage && (
+          {canManage && !isBigBoardView && (
             <GanzebordConfigForm
               eventId={event.id}
               currentBoardSize={(event.config as any)?.boardSize ?? 63}
             />
           )}
+
           <GanzebordBoard
             eventId={event.id}
             boardSize={(event.config as any)?.boardSize ?? 63}
@@ -164,22 +185,62 @@ export default async function EventPage({
             eventStatus={event.status}
             revealedTileNumbers={(reveals ?? []).map((r) => r.tile_number)}
           />
+
           <GanzebordLeaderboard
             teams={(teams as any) ?? []}
             boardSize={(event.config as any)?.boardSize ?? 63}
           />
-          {canManage && (
-            <GanzebordTilesManager
-              eventId={event.id}
-              boardSize={(event.config as any)?.boardSize ?? 63}
-              initialTiles={(tiles as any) ?? []}
-            />
+
+          {isBigBoardView ? (
+            <>
+              <div className="two-col-grid">
+                <div>
+                  <GanzebordHistory
+                    history={(history as any) ?? []}
+                    teams={(teams as any) ?? []}
+                    creatorNames={creatorNames}
+                  />
+                </div>
+                <div>{teamsManagerEl}</div>
+              </div>
+
+              {canManage && (
+                <GanzebordTilesManager
+                  eventId={event.id}
+                  boardSize={(event.config as any)?.boardSize ?? 63}
+                  initialTiles={(tiles as any) ?? []}
+                />
+              )}
+
+              {canManage && (
+                <div
+                  style={{
+                    marginTop: 40,
+                    paddingTop: 20,
+                    borderTop: '1px solid rgba(184, 134, 59, 0.25)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <EventStatusControl eventId={event.id} currentStatus={event.status} />
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {canManage && (
+                <GanzebordTilesManager
+                  eventId={event.id}
+                  boardSize={(event.config as any)?.boardSize ?? 63}
+                  initialTiles={(tiles as any) ?? []}
+                />
+              )}
+              <GanzebordHistory
+                history={(history as any) ?? []}
+                teams={(teams as any) ?? []}
+                creatorNames={creatorNames}
+              />
+            </>
           )}
-          <GanzebordHistory
-            history={(history as any) ?? []}
-            teams={(teams as any) ?? []}
-            creatorNames={creatorNames}
-          />
         </>
       )}
 
@@ -221,12 +282,7 @@ export default async function EventPage({
         </div>
       )}
 
-      <TeamsManager
-        eventId={event.id}
-        initialTeams={(teams as any) ?? []}
-        initialUnassigned={unassigned ?? []}
-        canManage={canManage}
-      />
+      {!isBigBoardView && teamsManagerEl}
     </main>
   )
 }
