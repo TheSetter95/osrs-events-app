@@ -27,52 +27,74 @@ const COLORS = ['#c0392b', '#2471a3', '#27ae60', '#e08e0b', '#8e44ad', '#16a085'
 
 type GridCell = { row: number; col: number }
 
-// Genereert alle cellen van een size×size raster in kloksgewijze spiraalvolgorde,
-// van buiten (linksboven) naar binnen — exact zoals een klassiek ganzebord.
-function generateSpiral(size: number): GridCell[] {
-  const cells: GridCell[] = []
+// Genereert alle ringen van een size×size raster, elke ring als losse lijst van
+// cellen in kloksgewijze volgorde (buitenste ring eerst, dan naar binnen toe).
+function generateSpiralRings(size: number): GridCell[][] {
+  const rings: GridCell[][] = []
   let top = 0
   let bottom = size - 1
   let left = 0
   let right = size - 1
 
   while (top <= bottom && left <= right) {
-    for (let c = left; c <= right; c++) cells.push({ row: top, col: c })
+    const ring: GridCell[] = []
+    for (let c = left; c <= right; c++) ring.push({ row: top, col: c })
     top++
-    for (let r = top; r <= bottom; r++) cells.push({ row: r, col: right })
+    for (let r = top; r <= bottom; r++) ring.push({ row: r, col: right })
     right--
     if (top <= bottom) {
-      for (let c = right; c >= left; c--) cells.push({ row: bottom, col: c })
+      for (let c = right; c >= left; c--) ring.push({ row: bottom, col: c })
       bottom--
     }
     if (left <= right) {
-      for (let r = bottom; r >= top; r--) cells.push({ row: r, col: left })
+      for (let r = bottom; r >= top; r--) ring.push({ row: r, col: left })
       left++
     }
+    rings.push(ring)
   }
-  return cells
+  return rings
 }
 
-// Bepaalt de rastergrootte en welke cel bij welk vakjenummer hoort. Het
-// laatste vakje (de finish) krijgt altijd de middelste 2x2-cellen — precies
-// de plek waar een spiraal op een even raster van nature eindigt.
-function computeSpiralLayout(boardSize: number) {
+// Bouwt een echt doolhof: even ringen (0, 2, 4, ...) zijn begaanbare gangen,
+// oneven ringen (1, 3, 5, ...) zijn muren — op precies één cel na, de
+// "doorgang" naar de volgende gang. Het laatste (binnenste) 2x2-blok is
+// altijd de finish.
+function computeLabyrinthLayout(boardSize: number) {
   let size = 2
-  while (size * size - 4 < boardSize - 1) {
+
+  while (true) {
+    const allRings = generateSpiralRings(size)
+    const centerRing = allRings[allRings.length - 1]
+    const outerRings = allRings.slice(0, -1)
+
+    const tileCells: GridCell[] = []
+    const wallCells: GridCell[] = []
+
+    outerRings.forEach((ring, i) => {
+      const isPathRing = i % 2 === 0
+
+      if (isPathRing) {
+        for (const cell of ring) {
+          if (tileCells.length < boardSize - 1) tileCells.push(cell)
+          else wallCells.push(cell)
+        }
+      } else {
+        // Muurring: de eerste cel is de doorgang (begaanbaar), de rest is muur
+        const [doorway, ...rest] = ring
+        if (tileCells.length < boardSize - 1) tileCells.push(doorway)
+        else wallCells.push(doorway)
+        wallCells.push(...rest)
+      }
+    })
+
+    if (tileCells.length >= boardSize - 1) {
+      const centerRow = Math.min(...centerRing.map((c) => c.row))
+      const centerCol = Math.min(...centerRing.map((c) => c.col))
+      return { size, tileCells, wallCells, centerRow, centerCol }
+    }
+
     size += 2
   }
-
-  const spiral = generateSpiral(size)
-  const ringCells = spiral.slice(0, size * size - 4)
-  const centerCells = spiral.slice(size * size - 4)
-
-  const tileCells = ringCells.slice(0, boardSize - 1) // vakjes 1 .. boardSize-1
-  const blankCells = ringCells.slice(boardSize - 1) // ongebruikte restcellen (indien niet precies passend)
-
-  const centerRow = Math.min(...centerCells.map((c) => c.row))
-  const centerCol = Math.min(...centerCells.map((c) => c.col))
-
-  return { size, tileCells, blankCells, centerRow, centerCol }
 }
 
 export default function GanzebordBoard({
@@ -108,8 +130,8 @@ export default function GanzebordBoard({
   const allVisible = eventStatus === 'draft'
   const revealedSet = new Set(revealedTileNumbers)
 
-  const { size, tileCells, blankCells, centerRow, centerCol } = useMemo(
-    () => computeSpiralLayout(boardSize),
+  const { size, tileCells, wallCells, centerRow, centerCol } = useMemo(
+    () => computeLabyrinthLayout(boardSize),
     [boardSize]
   )
 
@@ -410,71 +432,49 @@ export default function GanzebordBoard({
 
   return (
     <div style={{ marginTop: 24 }}>
-      {/* Het bord zelf: echte spiraal met een 2x2 finish-vakje in het midden */}
-      <div style={{ position: 'relative', marginBottom: 20 }}>
-        {/* Fakkels in de hoeken, voor het dungeon-gevoel */}
-        {['-8px', 'calc(100% - 22px)'].flatMap((left, li) =>
-          ['-8px', 'calc(100% - 22px)'].map((top, ti) => (
-            <span
-              key={`${li}-${ti}`}
-              style={{
-                position: 'absolute',
-                left,
-                top,
-                fontSize: 22,
-                zIndex: 3,
-                filter: 'drop-shadow(0 0 6px rgba(255, 150, 40, 0.8))',
-                pointerEvents: 'none',
-              }}
-            >
-              🔥
-            </span>
-          ))
+      {/* Het bord zelf: een echt doolhof — gangen en muren wisselen elkaar af,
+          met telkens één doorgang naar de volgende gang, tot aan de finish */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${size}, 1fr)`,
+          gridTemplateRows: `repeat(${size}, 1fr)`,
+          gap: 2,
+          marginBottom: 20,
+          aspectRatio: '1',
+          background: 'linear-gradient(160deg, #2a2318, #17130c)',
+          border: '3px solid var(--gold-dark)',
+          borderRadius: 'var(--radius)',
+          padding: 10,
+          boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.5)',
+        }}
+      >
+        {tileCells.map((cell, idx) =>
+          renderTile(idx + 1, {
+            gridColumn: cell.col + 1,
+            gridRow: cell.row + 1,
+          })
         )}
 
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            display: 'grid',
-            gridTemplateColumns: `repeat(${size}, 1fr)`,
-            gridTemplateRows: `repeat(${size}, 1fr)`,
-            gap: 4,
-            aspectRatio: '1',
-            background: 'linear-gradient(160deg, #2a2318, #17130c)',
-            border: '3px solid var(--gold-dark)',
-            borderRadius: 'var(--radius)',
-            padding: 10,
-            boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.5)',
-          }}
-        >
-          {tileCells.map((cell, idx) =>
-            renderTile(idx + 1, {
+        {wallCells.map((cell, i) => (
+          <div
+            key={`wall-${i}`}
+            style={{
               gridColumn: cell.col + 1,
               gridRow: cell.row + 1,
-            })
-          )}
+              borderRadius: 2,
+              border: '1px solid rgba(0,0,0,0.6)',
+              background:
+                'repeating-linear-gradient(135deg, #2b2620 0, #2b2620 5px, #1c1812 5px, #1c1812 10px)',
+              boxShadow: 'inset 0 0 6px rgba(0,0,0,0.8)',
+            }}
+          />
+        ))}
 
-          {blankCells.map((cell, i) => (
-            <div
-              key={`blank-${i}`}
-              style={{
-                gridColumn: cell.col + 1,
-                gridRow: cell.row + 1,
-                borderRadius: 4,
-                border: '1px solid rgba(0,0,0,0.5)',
-                background:
-                  'repeating-linear-gradient(135deg, #1a1610, #1a1610 4px, #14110c 4px, #14110c 8px)',
-                boxShadow: 'inset 0 0 8px rgba(0,0,0,0.7)',
-              }}
-            />
-          ))}
-
-          {renderTile(boardSize, {
-            gridColumn: `${centerCol + 1} / span 2`,
-            gridRow: `${centerRow + 1} / span 2`,
-          })}
-        </div>
+        {renderTile(boardSize, {
+          gridColumn: `${centerCol + 1} / span 2`,
+          gridRow: `${centerRow + 1} / span 2`,
+        })}
       </div>
 
       {pending && canManage && (
