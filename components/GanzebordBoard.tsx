@@ -131,7 +131,9 @@ export default function GanzebordBoard({
   }
 
   function canRollFor(team: Team) {
-    return canManage || (myTeamIds.includes(team.id) && team.can_roll)
+    // Gooien mag alleen als het team is vrijgegeven — ook voor organizers/owners.
+    // Organizers mogen dat voor élk vrijgegeven team; teamleden alleen voor hun eigen team.
+    return team.can_roll && (canManage || myTeamIds.includes(team.id))
   }
 
   async function handleRoll(team: Team) {
