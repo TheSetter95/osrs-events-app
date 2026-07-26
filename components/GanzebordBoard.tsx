@@ -386,44 +386,73 @@ export default function GanzebordBoard({
   return (
     <div style={{ marginTop: 24 }}>
       {/* Het bord zelf: echte spiraal met een 2x2 finish-vakje in het midden */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${size}, 1fr)`,
-          gridTemplateRows: `repeat(${size}, 1fr)`,
-          gap: 4,
-          marginBottom: 20,
-          aspectRatio: '1',
-          background: 'linear-gradient(160deg, #2a2318, #17130c)',
-          border: '3px solid var(--gold-dark)',
-          borderRadius: 'var(--radius)',
-          padding: 10,
-          boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.5)',
-        }}
-      >
-        {tileCells.map((cell, idx) =>
-          renderTile(idx + 1, {
-            gridColumn: cell.col + 1,
-            gridRow: cell.row + 1,
-          })
-        )}
+      <div style={{ position: 'relative', marginBottom: 20 }}>
+        {/* Gloeiend gouden spoor dat de route van vak 1 tot de finish toont */}
+        <svg
+          viewBox={`0 0 ${size} ${size}`}
+          preserveAspectRatio="none"
+          style={{
+            position: 'absolute',
+            inset: 13, // volgt de padding (10px) + border (3px) van het bord
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}
+        >
+          <polyline
+            points={[
+              ...tileCells.map((c) => `${c.col + 0.5},${c.row + 0.5}`),
+              `${centerCol + 1},${centerRow + 1}`,
+            ].join(' ')}
+            fill="none"
+            stroke="var(--gold-light)"
+            strokeWidth={0.05}
+            strokeOpacity={0.55}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ filter: 'drop-shadow(0 0 2px rgba(212, 162, 79, 0.9))' }}
+          />
+        </svg>
 
-        {blankCells.map((cell, i) => (
-          <div
-            key={`blank-${i}`}
-            style={{
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'grid',
+            gridTemplateColumns: `repeat(${size}, 1fr)`,
+            gridTemplateRows: `repeat(${size}, 1fr)`,
+            gap: 4,
+            aspectRatio: '1',
+            background: 'linear-gradient(160deg, #2a2318, #17130c)',
+            border: '3px solid var(--gold-dark)',
+            borderRadius: 'var(--radius)',
+            padding: 10,
+            boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.5)',
+          }}
+        >
+          {tileCells.map((cell, idx) =>
+            renderTile(idx + 1, {
               gridColumn: cell.col + 1,
               gridRow: cell.row + 1,
-              borderRadius: 4,
-              background: 'rgba(0,0,0,0.25)',
-            }}
-          />
-        ))}
+            })
+          )}
 
-        {renderTile(boardSize, {
-          gridColumn: `${centerCol + 1} / span 2`,
-          gridRow: `${centerRow + 1} / span 2`,
-        })}
+          {blankCells.map((cell, i) => (
+            <div
+              key={`blank-${i}`}
+              style={{
+                gridColumn: cell.col + 1,
+                gridRow: cell.row + 1,
+                borderRadius: 4,
+                background: 'rgba(0,0,0,0.25)',
+              }}
+            />
+          ))}
+
+          {renderTile(boardSize, {
+            gridColumn: `${centerCol + 1} / span 2`,
+            gridRow: `${centerRow + 1} / span 2`,
+          })}
+        </div>
       </div>
 
       {pending && canManage && (
