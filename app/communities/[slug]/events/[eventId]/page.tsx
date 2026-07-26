@@ -148,6 +148,49 @@ export default async function EventPage({
 
   return (
     <main className={isBigBoardView ? 'container-wide' : 'container'}>
+      {isBigBoardView && (
+        <>
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              left: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 'clamp(80px, 14vw, 260px)',
+              color: 'rgba(212, 162, 79, 0.08)',
+              pointerEvents: 'none',
+              zIndex: -1,
+              lineHeight: 1,
+              userSelect: 'none',
+            }}
+          >
+            M
+          </span>
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              right: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 'clamp(80px, 14vw, 260px)',
+              color: 'rgba(212, 162, 79, 0.08)',
+              pointerEvents: 'none',
+              zIndex: -1,
+              lineHeight: 1,
+              userSelect: 'none',
+            }}
+          >
+            G
+          </span>
+        </>
+      )}
+
       <Link href={`/communities/${slug}`} className="back-link">
         &larr; Terug naar community
       </Link>
