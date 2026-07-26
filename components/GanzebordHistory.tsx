@@ -33,52 +33,54 @@ export default function GanzebordHistory({
   if (history.length === 0) return null
 
   return (
-    <div className="panel-dark" style={{ marginTop: 24 }}>
+    <div style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: 18 }}>Geschiedenis</h2>
-      <ul style={{ listStyle: 'none', padding: 0, fontSize: 13, margin: 0 }}>
-        {history.map((entry) => {
-          const d = entry.data ?? {}
-          const name = teamName(d.team_id)
-          let actionText = ''
+      <div className="panel-dark" style={{ maxHeight: 420, overflowY: 'auto' }}>
+        <ul style={{ listStyle: 'none', padding: 0, fontSize: 13, margin: 0 }}>
+          {history.map((entry) => {
+            const d = entry.data ?? {}
+            const name = teamName(d.team_id)
+            let actionText = ''
 
-          if (d.method === 'dobbelsteen') {
-            actionText = `🎲 gooide ${d.roll} (vak ${d.from} → ${d.to})`
-          } else if (d.method === 'straf' || d.method === 'straf_zelf') {
-            actionText = d.roll
-              ? `💥 straf: dobbelsteen ${d.roll} terug (vak ${d.from} → ${d.to})`
-              : `💥 straf: ${d.steps} terug (vak ${d.from} → ${d.to})`
-          } else if (d.method === 'straf_toegewezen') {
-            actionText = '📜 strafworp toegewezen'
-          } else if (d.method === 'handmatig') {
-            actionText = `✏️ handmatig gezet (vak ${d.from} → ${d.to})`
-          } else {
-            actionText = `vak ${d.from} → ${d.to}`
-          }
+            if (d.method === 'dobbelsteen') {
+              actionText = `🎲 gooide ${d.roll} (vak ${d.from} → ${d.to})`
+            } else if (d.method === 'straf' || d.method === 'straf_zelf') {
+              actionText = d.roll
+                ? `💥 straf: dobbelsteen ${d.roll} terug (vak ${d.from} → ${d.to})`
+                : `💥 straf: ${d.steps} terug (vak ${d.from} → ${d.to})`
+            } else if (d.method === 'straf_toegewezen') {
+              actionText = '📜 strafworp toegewezen'
+            } else if (d.method === 'handmatig') {
+              actionText = `✏️ handmatig gezet (vak ${d.from} → ${d.to})`
+            } else {
+              actionText = `vak ${d.from} → ${d.to}`
+            }
 
-          const via =
-            entry.source === 'discord_bot'
-              ? 'via Discord'
-              : entry.created_by && creatorNames[entry.created_by]
-              ? `door ${creatorNames[entry.created_by]}`
-              : 'via website'
+            const via =
+              entry.source === 'discord_bot'
+                ? 'via Discord'
+                : entry.created_by && creatorNames[entry.created_by]
+                ? `door ${creatorNames[entry.created_by]}`
+                : 'via website'
 
-          return (
-            <li
-              key={entry.id}
-              style={{
-                padding: '6px 0',
-                borderBottom: '1px solid rgba(184, 134, 59, 0.25)',
-                color: 'var(--text-on-dark)',
-              }}
-            >
-              <strong>{name}</strong> {actionText}{' '}
-              <span className="text-muted">
-                — {via}, {timeAgo(entry.created_at)}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
+            return (
+              <li
+                key={entry.id}
+                style={{
+                  padding: '6px 0',
+                  borderBottom: '1px solid rgba(184, 134, 59, 0.25)',
+                  color: 'var(--text-on-dark)',
+                }}
+              >
+                <strong>{name}</strong> {actionText}{' '}
+                <span className="text-muted">
+                  — {via}, {timeAgo(entry.created_at)}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
     </div>
   )
 }

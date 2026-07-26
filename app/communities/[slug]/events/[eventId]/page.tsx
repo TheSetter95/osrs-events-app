@@ -104,7 +104,6 @@ export default async function EventPage({
     .select('id, data, source, created_at, created_by')
     .eq('event_id', event.id)
     .order('created_at', { ascending: false })
-    .limit(30)
 
   const creatorIds = [...new Set((history ?? []).map((h) => h.created_by).filter(Boolean))]
   let creatorNames: Record<string, string> = {}
