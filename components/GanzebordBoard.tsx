@@ -130,6 +130,14 @@ export default function GanzebordBoard({
     return COLORS[index % COLORS.length]
   }
 
+  // Haalt de automatische "Team N"-prefix eraf, zodat alleen de eigen
+  // toegevoegde naam overblijft (valt terug op de volledige naam als er
+  // niets anders is dan "Team N").
+  function displayTeamName(name: string) {
+    const stripped = name.replace(/^Team\s+\d+\s*/i, '').trim()
+    return stripped || name
+  }
+
   function canRollFor(team: Team) {
     // Gooien mag alleen als het team is vrijgegeven — ook voor organizers/owners.
     // Organizers mogen dat voor élk vrijgegeven team; teamleden alleen voor hun eigen team.
@@ -242,6 +250,8 @@ export default function GanzebordBoard({
               style={{
                 position: 'absolute',
                 bottom: 2,
+                left: 2,
+                right: 2,
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: 2,
@@ -253,19 +263,21 @@ export default function GanzebordBoard({
                   key={t.id}
                   title={t.name}
                   style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
+                    padding: '1px 4px',
+                    borderRadius: 4,
                     background: teamColor(t.id),
                     color: 'white',
                     fontSize: 7,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    fontWeight: 700,
+                    lineHeight: 1.3,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '100%',
                     border: '1px solid rgba(0,0,0,0.4)',
                   }}
                 >
-                  {t.name.slice(0, 1).toUpperCase()}
+                  {displayTeamName(t.name)}
                 </span>
               ))}
             </div>
@@ -347,24 +359,35 @@ export default function GanzebordBoard({
         ) : (
           tileTask && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 10 }}>📜</span>
         )}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 2,
+            justifyContent: 'center',
+            width: '100%',
+            padding: '0 2px',
+          }}
+        >
           {occupants.map((t) => (
             <span
               key={t.id}
               title={t.name}
               style={{
-                width: 14,
-                height: 14,
-                borderRadius: '50%',
+                padding: '1px 4px',
+                borderRadius: 4,
                 background: teamColor(t.id),
                 color: 'white',
                 fontSize: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                fontWeight: 700,
+                lineHeight: 1.3,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '100%',
               }}
             >
-              {t.name.slice(0, 1).toUpperCase()}
+              {displayTeamName(t.name)}
             </span>
           ))}
         </div>
