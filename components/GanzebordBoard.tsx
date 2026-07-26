@@ -310,8 +310,8 @@ export default function GanzebordBoard({
           background: isFinish
             ? 'linear-gradient(160deg, #ffe9a8, var(--gold-light))'
             : tileTask
-            ? 'linear-gradient(160deg, #4a3420, #2e2013)'
-            : 'linear-gradient(160deg, #4a463f, #2b2823)',
+            ? 'radial-gradient(circle at 25% 25%, rgba(255,255,255,0.04), transparent 45%), linear-gradient(160deg, #4a3420, #2e2013)'
+            : 'radial-gradient(circle at 25% 25%, rgba(255,255,255,0.07), transparent 40%), radial-gradient(circle at 75% 75%, rgba(0,0,0,0.25), transparent 45%), linear-gradient(160deg, #605a4d, #3a362d)',
           padding: 2,
           display: 'flex',
           flexDirection: 'column',
@@ -412,31 +412,25 @@ export default function GanzebordBoard({
     <div style={{ marginTop: 24 }}>
       {/* Het bord zelf: echte spiraal met een 2x2 finish-vakje in het midden */}
       <div style={{ position: 'relative', marginBottom: 20 }}>
-        {/* Gloeiend gouden spoor dat de route van vak 1 tot de finish toont */}
-        <svg
-          viewBox={`0 0 ${size} ${size}`}
-          preserveAspectRatio="none"
-          style={{
-            position: 'absolute',
-            inset: 13, // volgt de padding (10px) + border (3px) van het bord
-            pointerEvents: 'none',
-            zIndex: 2,
-          }}
-        >
-          <polyline
-            points={[
-              ...tileCells.map((c) => `${c.col + 0.5},${c.row + 0.5}`),
-              `${centerCol + 1},${centerRow + 1}`,
-            ].join(' ')}
-            fill="none"
-            stroke="var(--gold-light)"
-            strokeWidth={0.035}
-            strokeOpacity={0.25}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ filter: 'drop-shadow(0 0 1.5px rgba(212, 162, 79, 0.5))' }}
-          />
-        </svg>
+        {/* Fakkels in de hoeken, voor het dungeon-gevoel */}
+        {['-8px', 'calc(100% - 22px)'].flatMap((left, li) =>
+          ['-8px', 'calc(100% - 22px)'].map((top, ti) => (
+            <span
+              key={`${li}-${ti}`}
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                fontSize: 22,
+                zIndex: 3,
+                filter: 'drop-shadow(0 0 6px rgba(255, 150, 40, 0.8))',
+                pointerEvents: 'none',
+              }}
+            >
+              🔥
+            </span>
+          ))
+        )}
 
         <div
           style={{
@@ -468,7 +462,10 @@ export default function GanzebordBoard({
                 gridColumn: cell.col + 1,
                 gridRow: cell.row + 1,
                 borderRadius: 4,
-                background: 'rgba(0,0,0,0.25)',
+                border: '1px solid rgba(0,0,0,0.5)',
+                background:
+                  'repeating-linear-gradient(135deg, #1a1610, #1a1610 4px, #14110c 4px, #14110c 8px)',
+                boxShadow: 'inset 0 0 8px rgba(0,0,0,0.7)',
               }}
             />
           ))}
