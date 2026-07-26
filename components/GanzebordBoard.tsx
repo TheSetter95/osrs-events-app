@@ -407,11 +407,11 @@ export default function GanzebordBoard({
             ].join(' ')}
             fill="none"
             stroke="var(--gold-light)"
-            strokeWidth={0.05}
-            strokeOpacity={0.55}
+            strokeWidth={0.035}
+            strokeOpacity={0.25}
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ filter: 'drop-shadow(0 0 2px rgba(212, 162, 79, 0.9))' }}
+            style={{ filter: 'drop-shadow(0 0 1.5px rgba(212, 162, 79, 0.5))' }}
           />
         </svg>
 
