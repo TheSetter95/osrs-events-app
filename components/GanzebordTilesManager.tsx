@@ -7,7 +7,7 @@ type Tile = {
   id: string
   tile_number: number
   description: string
-  effect_type: 'geen' | 'terug_dobbelsteen' | 'terug_vast'
+  effect_type: 'geen' | 'terug_dobbelsteen' | 'terug_vast' | 'vooruit_dobbelsteen'
   effect_value: number | null
   transferable: boolean
   image_url: string | null
@@ -19,6 +19,7 @@ const EFFECT_LABELS: Record<string, string> = {
   geen: 'Geen automatisch effect (alleen tekst-opdracht)',
   terug_dobbelsteen: 'Rol de dobbelsteen en ga dat aantal terug',
   terug_vast: 'Ga een vast aantal vakjes terug',
+  vooruit_dobbelsteen: 'Rol de dobbelsteen nog eens en ga dat aantal vooruit',
 }
 
 export default function GanzebordTilesManager({
@@ -34,7 +35,9 @@ export default function GanzebordTilesManager({
   const [tileNumber, setTileNumber] = useState(1)
   const [description, setDescription] = useState('')
   const [wikiUrl, setWikiUrl] = useState('')
-  const [effectType, setEffectType] = useState<'geen' | 'terug_dobbelsteen' | 'terug_vast'>('geen')
+  const [effectType, setEffectType] = useState<
+    'geen' | 'terug_dobbelsteen' | 'terug_vast' | 'vooruit_dobbelsteen'
+  >('geen')
   const [effectValue, setEffectValue] = useState(3)
   const [transferable, setTransferable] = useState(false)
   const [glowColor, setGlowColor] = useState('')
@@ -163,6 +166,7 @@ export default function GanzebordTilesManager({
           <option value="geen">{EFFECT_LABELS.geen}</option>
           <option value="terug_dobbelsteen">{EFFECT_LABELS.terug_dobbelsteen}</option>
           <option value="terug_vast">{EFFECT_LABELS.terug_vast}</option>
+          <option value="vooruit_dobbelsteen">{EFFECT_LABELS.vooruit_dobbelsteen}</option>
         </select>
 
         {effectType === 'terug_vast' && (
@@ -186,7 +190,7 @@ export default function GanzebordTilesManager({
               checked={transferable}
               onChange={(e) => setTransferable(e.target.checked)}
             />
-            Team mag deze straf uitdelen aan een ander team
+            Team mag dit {effectType === 'vooruit_dobbelsteen' ? 'voordeel' : 'nadeel'} uitdelen aan een ander team
           </label>
         )}
 

@@ -15,7 +15,7 @@ type Tile = {
   id: string
   tile_number: number
   description: string
-  effect_type: 'geen' | 'terug_dobbelsteen' | 'terug_vast'
+  effect_type: 'geen' | 'terug_dobbelsteen' | 'terug_vast' | 'vooruit_dobbelsteen'
   effect_value: number | null
   transferable: boolean
   image_url: string | null
@@ -212,6 +212,8 @@ export default function GanzebordBoard({
 
     if (pending.tile.effect_type === 'terug_dobbelsteen') {
       await fetch(`/api/teams/${targetTeamId}/assign-penalty`, { method: 'POST' })
+    } else if (pending.tile.effect_type === 'vooruit_dobbelsteen') {
+      await fetch(`/api/teams/${targetTeamId}/assign-bonus`, { method: 'POST' })
     } else if (pending.tile.effect_type === 'terug_vast') {
       await fetch(`/api/teams/${targetTeamId}/penalty`, {
         method: 'POST',
@@ -492,7 +494,9 @@ export default function GanzebordBoard({
             <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {pending.tile.transferable ? (
                 <>
-                  <label style={{ fontSize: 13 }}>Straf toewijzen aan:</label>
+                  <label style={{ fontSize: 13 }}>
+                    {pending.tile.effect_type === 'vooruit_dobbelsteen' ? 'Bonus toewijzen aan:' : 'Straf toewijzen aan:'}
+                  </label>
                   <select
                     value={targetTeamId}
                     onChange={(e) => setTargetTeamId(e.target.value)}
@@ -509,15 +513,22 @@ export default function GanzebordBoard({
                 </>
               ) : (
                 <span style={{ fontSize: 13 }}>
-                  Straf geldt voor <strong>{pending.team.name}</strong>
+                  {pending.tile.effect_type === 'vooruit_dobbelsteen' ? 'Bonus geldt voor' : 'Straf geldt voor'}{' '}
+                  <strong>{pending.team.name}</strong>
                 </span>
               )}
 
-              <button onClick={handleResolvePending} disabled={resolvingPenalty} className="btn btn-danger btn-sm">
+              <button
+                onClick={handleResolvePending}
+                disabled={resolvingPenalty}
+                className={`btn btn-sm ${pending.tile.effect_type === 'vooruit_dobbelsteen' ? 'btn-success' : 'btn-danger'}`}
+              >
                 {resolvingPenalty
                   ? 'Bezig...'
                   : pending.tile.effect_type === 'terug_dobbelsteen'
-                  ? 'Wijs toe (team gooit zelf)'
+                  ? 'Wijs straf toe (team gooit zelf)'
+                  : pending.tile.effect_type === 'vooruit_dobbelsteen'
+                  ? 'Wijs bonus toe (team gooit zelf)'
                   : 'Voer straf uit'}
               </button>
               <button onClick={() => setPending(null)} className="btn btn-secondary on-parchment btn-sm">
