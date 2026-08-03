@@ -41,6 +41,7 @@ export default function GanzebordTilesManager({
   const [effectValue, setEffectValue] = useState(3)
   const [transferable, setTransferable] = useState(false)
   const [glowColor, setGlowColor] = useState('')
+  const [editingTileId, setEditingTileId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,6 +77,7 @@ export default function GanzebordTilesManager({
     setTransferable(false)
     setWikiUrl('')
     setGlowColor('')
+    setEditingTileId(null)
     setLoading(false)
     router.refresh()
   }
@@ -83,7 +85,32 @@ export default function GanzebordTilesManager({
   async function handleDelete(tileId: string) {
     if (!confirm('Deze opdracht verwijderen?')) return
     await fetch(`/api/board-tiles/${tileId}`, { method: 'DELETE' })
+    if (editingTileId === tileId) handleCancelEdit()
     router.refresh()
+  }
+
+  function handleEdit(tile: Tile) {
+    setEditingTileId(tile.id)
+    setTileNumber(tile.tile_number)
+    setDescription(tile.description)
+    setWikiUrl(tile.wiki_url ?? '')
+    setEffectType(tile.effect_type)
+    setEffectValue(tile.effect_value ?? 3)
+    setTransferable(tile.transferable)
+    setGlowColor(tile.glow_color ?? '')
+    // Scroll het formulier in beeld, handig bij een lange lijst met opdrachten
+    document.getElementById('ganzebord-tile-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  function handleCancelEdit() {
+    setEditingTileId(null)
+    setTileNumber(1)
+    setDescription('')
+    setWikiUrl('')
+    setEffectType('geen')
+    setEffectValue(3)
+    setTransferable(false)
+    setGlowColor('')
   }
 
   return (
@@ -117,6 +144,9 @@ export default function GanzebordTilesManager({
                     ({EFFECT_LABELS[tile.effect_type]}
                     {tile.transferable ? ', uitdeelbaar' : ''})
                   </span>
+                  <button onClick={() => handleEdit(tile)} className="btn-link" style={{ marginLeft: 8, color: 'var(--gold-light)' }}>
+                    bewerken
+                  </button>
                   <button onClick={() => handleDelete(tile.id)} className="btn-link" style={{ marginLeft: 8 }}>
                     verwijder
                   </button>
@@ -126,8 +156,18 @@ export default function GanzebordTilesManager({
         </ul>
       )}
 
-      <form onSubmit={handleSubmit} style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <form
+        id="ganzebord-tile-form"
+        onSubmit={handleSubmit}
+        style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}
+      >
         {error && <p className="error-text">{error}</p>}
+
+        {editingTileId && (
+          <p style={{ fontSize: 13, color: 'var(--gold-light)', margin: 0 }}>
+            ✏️ Je bewerkt nu vak {tileNumber} — sla op om de wijzigingen te bevestigen.
+          </p>
+        )}
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <label className="field-label" style={{ margin: 0 }}>Vakje nr.</label>
@@ -139,7 +179,13 @@ export default function GanzebordTilesManager({
             onChange={(e) => setTileNumber(Number(e.target.value))}
             className="input"
             style={{ width: 70 }}
+            disabled={!!editingTileId}
           />
+          {editingTileId && (
+            <span className="text-muted" style={{ fontSize: 12 }}>
+              (vakjenummer kan niet gewijzigd worden — verwijder en maak opnieuw aan als je 'm wil verplaatsen)
+            </span>
+          )}
         </div>
 
         <input
@@ -236,9 +282,16 @@ export default function GanzebordTilesManager({
           deelnemers dat er iets bijzonders op dit vakje staat.
         </p>
 
-        <button type="submit" disabled={loading || !description.trim()} className="btn" style={{ alignSelf: 'flex-start' }}>
-          {loading ? 'Bezig...' : 'Opdracht opslaan'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="submit" disabled={loading || !description.trim()} className="btn">
+            {loading ? 'Bezig...' : editingTileId ? 'Wijzigingen opslaan' : 'Opdracht opslaan'}
+          </button>
+          {editingTileId && (
+            <button type="button" onClick={handleCancelEdit} className="btn btn-secondary">
+              Annuleren
+            </button>
+          )}
+        </div>
       </form>
     </div>
   )
