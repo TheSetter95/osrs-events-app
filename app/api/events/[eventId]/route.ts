@@ -49,6 +49,12 @@ export async function PATCH(
     )
   }
 
+  // Zodra een event (opnieuw) actief wordt, tonen we de vakjes weer verborgen —
+  // handig om na een playtest (via concept) fris opnieuw te beginnen.
+  if (updates.status === 'active') {
+    await supabase.from('board_tile_reveals').delete().eq('event_id', params.eventId)
+  }
+
   return NextResponse.json({ event })
 }
 
