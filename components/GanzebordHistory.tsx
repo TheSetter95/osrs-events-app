@@ -50,6 +50,8 @@ export default function GanzebordHistory({
                 : `💥 straf: ${d.steps} terug (vak ${d.from} → ${d.to})`
             } else if (d.method === 'straf_toegewezen') {
               actionText = '📜 strafworp toegewezen'
+            } else if (d.method === 'bonus_toegewezen') {
+              actionText = '🎁 bonusworp toegewezen'
             } else if (d.method === 'handmatig') {
               actionText = `✏️ handmatig gezet (vak ${d.from} → ${d.to})`
             } else {
