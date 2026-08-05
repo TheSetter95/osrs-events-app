@@ -12,6 +12,8 @@ export default function SiteFooter() {
       }}
     >
       <span className="text-muted">
+        <Link href="/profiel">Mijn profiel</Link>
+        {' · '}
         <Link href="/voorwaarden">Servicevoorwaarden</Link>
         {' · '}
         <Link href="/privacybeleid">Privacybeleid</Link>
