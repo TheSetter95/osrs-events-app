@@ -287,17 +287,19 @@ export default function GanzebordBoard({
                   key={t.id}
                   title={t.name}
                   style={{
-                    padding: '1px 4px',
+                    padding: '2px 6px',
                     borderRadius: 4,
                     background: teamColor(t.id),
                     color: 'white',
-                    fontSize: 7,
+                    fontSize: 10,
                     fontWeight: 700,
                     lineHeight: 1.3,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     maxWidth: '100%',
+                    textShadow: '0 1px 1px rgba(0,0,0,0.6)',
+                    border: '1px solid rgba(0,0,0,0.35)',
                     border: '1px solid rgba(0,0,0,0.4)',
                   }}
                 >
@@ -358,39 +360,50 @@ export default function GanzebordBoard({
           </span>
         )}
         {tileTask?.image_url ? (
-          <a
-            href={tileTask.wiki_url ?? undefined}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            style={
-              occupants.length > 0
-                ? {
-                    position: 'absolute',
-                    top: 1,
-                    right: 1,
-                    pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
-                  }
-                : {
-                    position: 'absolute',
-                    inset: 3,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
-                  }
-            }
-          >
-            <img
-              src={tileTask.image_url}
-              alt=""
-              style={
-                occupants.length > 0
-                  ? { width: 12, height: 12, objectFit: 'contain' }
-                  : { width: '94%', height: '94%', objectFit: 'contain', imageRendering: 'pixelated' }
-              }
-            />
-          </a>
+          occupants.length > 0 ? (
+            <a
+              href={tileTask.wiki_url ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '46%',
+                height: '46%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
+                marginTop: isFinish ? 0 : 2,
+              }}
+            >
+              <img
+                src={tileTask.image_url}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+              />
+            </a>
+          ) : (
+            <a
+              href={tileTask.wiki_url ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'absolute',
+                inset: 3,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
+              }}
+            >
+              <img
+                src={tileTask.image_url}
+                alt=""
+                style={{ width: '94%', height: '94%', objectFit: 'contain', imageRendering: 'pixelated' }}
+              />
+            </a>
+          )
         ) : (
           tileTask && <span style={{ position: 'absolute', top: 1, right: 2, fontSize: 10 }}>📜</span>
         )}
@@ -409,17 +422,19 @@ export default function GanzebordBoard({
               key={t.id}
               title={t.name}
               style={{
-                padding: '1px 4px',
+                padding: '2px 6px',
                 borderRadius: 4,
                 background: teamColor(t.id),
                 color: 'white',
-                fontSize: 8,
+                fontSize: 10,
                 fontWeight: 700,
                 lineHeight: 1.3,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 maxWidth: '100%',
+                textShadow: '0 1px 1px rgba(0,0,0,0.6)',
+                border: '1px solid rgba(0,0,0,0.35)',
               }}
             >
               {displayTeamName(t.name)}

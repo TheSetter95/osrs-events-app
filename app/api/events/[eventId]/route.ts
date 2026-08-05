@@ -35,6 +35,14 @@ export async function PATCH(
     return NextResponse.json({ error: 'Niets om op te slaan.' }, { status: 400 })
   }
 
+  // Huidige status opzoeken vóór de wijziging, nodig om te bepalen of dit een
+  // "afgerond -> concept"-overgang is (dan resetten we de geschiedenis).
+  const { data: existingEvent } = await supabase
+    .from('events')
+    .select('status')
+    .eq('id', params.eventId)
+    .single()
+
   const { data: event, error } = await supabase
     .from('events')
     .update(updates)
@@ -53,6 +61,12 @@ export async function PATCH(
   // handig om na een playtest (via concept) fris opnieuw te beginnen.
   if (updates.status === 'active') {
     await supabase.from('board_tile_reveals').delete().eq('event_id', params.eventId)
+  }
+
+  // Gaat een afgerond event terug naar concept, dan wissen we ook de volledige
+  // geschiedenis — een nieuwe poging begint dan echt vanaf nul.
+  if (updates.status === 'draft' && existingEvent?.status === 'finished') {
+    await supabase.from('progress_updates').delete().eq('event_id', params.eventId)
   }
 
   return NextResponse.json({ event })
