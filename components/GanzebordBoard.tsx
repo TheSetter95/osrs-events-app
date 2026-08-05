@@ -363,21 +363,32 @@ export default function GanzebordBoard({
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'absolute',
-              top: 1,
-              right: 1,
-              pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
-            }}
+            style={
+              occupants.length > 0
+                ? {
+                    position: 'absolute',
+                    top: 1,
+                    right: 1,
+                    pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
+                  }
+                : {
+                    position: 'absolute',
+                    inset: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pointerEvents: tileTask.wiki_url ? 'auto' : 'none',
+                  }
+            }
           >
             <img
               src={tileTask.image_url}
               alt=""
-              style={{
-                width: 12,
-                height: 12,
-                objectFit: 'contain',
-              }}
+              style={
+                occupants.length > 0
+                  ? { width: 12, height: 12, objectFit: 'contain' }
+                  : { width: '94%', height: '94%', objectFit: 'contain', imageRendering: 'pixelated' }
+              }
             />
           </a>
         ) : (
