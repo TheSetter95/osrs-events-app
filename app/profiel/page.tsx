@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileSettings from '@/components/ProfileSettings'
+import PluginTokenGenerator from '@/components/PluginTokenGenerator'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -35,6 +36,8 @@ export default async function ProfilePage() {
       </div>
 
       <ProfileSettings userId={user.id} currentOsrsUsername={profile?.osrs_username ?? null} />
+
+      <PluginTokenGenerator />
     </main>
   )
 }

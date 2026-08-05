@@ -3,16 +3,24 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 
+type Requirement = {
+  id?: string
+  item_id: number
+  item_name: string
+  required_quantity: number
+}
+
 type Tile = {
   id: string
   tile_number: number
   description: string
-  effect_type: 'geen' | 'terug_dobbelsteen' | 'terug_vast' | 'vooruit_dobbelsteen'
+  effect_type: 'geen' | 'terug_dobbelsteen' | 'terug_vast' | 'vooruit_dobbelsteen' | 'verzamel_item'
   effect_value: number | null
   transferable: boolean
   image_url: string | null
   wiki_url: string | null
   glow_color: string | null
+  requirements?: Requirement[]
 }
 
 const EFFECT_LABELS: Record<string, string> = {
@@ -20,7 +28,12 @@ const EFFECT_LABELS: Record<string, string> = {
   terug_dobbelsteen: 'Rol de dobbelsteen en ga dat aantal terug',
   terug_vast: 'Ga een vast aantal vakjes terug',
   vooruit_dobbelsteen: 'Rol de dobbelsteen nog eens en ga dat aantal vooruit',
+  verzamel_item: 'Verzamel item(s) (via RuneLite-plugin, teamteller)',
 }
+
+type DraftItem = { itemId: string; itemName: string; quantity: number }
+
+const EMPTY_DRAFT_ITEM: DraftItem = { itemId: '', itemName: '', quantity: 1 }
 
 export default function GanzebordTilesManager({
   eventId,
@@ -36,14 +49,27 @@ export default function GanzebordTilesManager({
   const [description, setDescription] = useState('')
   const [wikiUrl, setWikiUrl] = useState('')
   const [effectType, setEffectType] = useState<
-    'geen' | 'terug_dobbelsteen' | 'terug_vast' | 'vooruit_dobbelsteen'
+    'geen' | 'terug_dobbelsteen' | 'terug_vast' | 'vooruit_dobbelsteen' | 'verzamel_item'
   >('geen')
   const [effectValue, setEffectValue] = useState(3)
+  const [requiredItems, setRequiredItems] = useState<DraftItem[]>([{ ...EMPTY_DRAFT_ITEM }])
   const [transferable, setTransferable] = useState(false)
   const [glowColor, setGlowColor] = useState('')
   const [editingTileId, setEditingTileId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function updateItem(index: number, patch: Partial<DraftItem>) {
+    setRequiredItems((items) => items.map((it, i) => (i === index ? { ...it, ...patch } : it)))
+  }
+
+  function addItemRow() {
+    setRequiredItems((items) => [...items, { ...EMPTY_DRAFT_ITEM }])
+  }
+
+  function removeItemRow(index: number) {
+    setRequiredItems((items) => items.filter((_, i) => i !== index))
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -62,6 +88,10 @@ export default function GanzebordTilesManager({
         transferable,
         wikiUrl,
         glowColor,
+        requiredItems:
+          effectType === 'verzamel_item'
+            ? requiredItems.map((it) => ({ itemId: it.itemId, itemName: it.itemName, quantity: it.quantity }))
+            : null,
       }),
     })
     const result = await res.json()
@@ -72,12 +102,7 @@ export default function GanzebordTilesManager({
       return
     }
 
-    setDescription('')
-    setEffectType('geen')
-    setTransferable(false)
-    setWikiUrl('')
-    setGlowColor('')
-    setEditingTileId(null)
+    handleCancelEdit()
     setLoading(false)
     router.refresh()
   }
@@ -98,7 +123,15 @@ export default function GanzebordTilesManager({
     setEffectValue(tile.effect_value ?? 3)
     setTransferable(tile.transferable)
     setGlowColor(tile.glow_color ?? '')
-    // Scroll het formulier in beeld, handig bij een lange lijst met opdrachten
+    setRequiredItems(
+      tile.requirements && tile.requirements.length > 0
+        ? tile.requirements.map((r) => ({
+            itemId: String(r.item_id),
+            itemName: r.item_name,
+            quantity: r.required_quantity,
+          }))
+        : [{ ...EMPTY_DRAFT_ITEM }]
+    )
     document.getElementById('ganzebord-tile-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
@@ -111,6 +144,7 @@ export default function GanzebordTilesManager({
     setEffectValue(3)
     setTransferable(false)
     setGlowColor('')
+    setRequiredItems([{ ...EMPTY_DRAFT_ITEM }])
   }
 
   return (
@@ -122,9 +156,9 @@ export default function GanzebordTilesManager({
           {[...initialTiles]
             .sort((a, b) => a.tile_number - b.tile_number)
             .map((tile) => (
-              <li key={tile.id} style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <li key={tile.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                 {tile.image_url && (
-                  <img src={tile.image_url} alt="" width={20} height={20} style={{ objectFit: 'contain' }} />
+                  <img src={tile.image_url} alt="" width={20} height={20} style={{ objectFit: 'contain', marginTop: 2 }} />
                 )}
                 {tile.glow_color && (
                   <span
@@ -135,6 +169,7 @@ export default function GanzebordTilesManager({
                       background: tile.glow_color,
                       boxShadow: `0 0 6px 2px ${tile.glow_color}`,
                       flexShrink: 0,
+                      marginTop: 4,
                     }}
                   />
                 )}
@@ -150,6 +185,15 @@ export default function GanzebordTilesManager({
                   <button onClick={() => handleDelete(tile.id)} className="btn-link" style={{ marginLeft: 8 }}>
                     verwijder
                   </button>
+                  {tile.effect_type === 'verzamel_item' && tile.requirements && tile.requirements.length > 0 && (
+                    <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 12 }} className="text-muted">
+                      {tile.requirements.map((r, i) => (
+                        <li key={r.id ?? i}>
+                          {r.required_quantity}x {r.item_name} (ID {r.item_id})
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </span>
               </li>
             ))}
@@ -213,6 +257,7 @@ export default function GanzebordTilesManager({
           <option value="terug_dobbelsteen">{EFFECT_LABELS.terug_dobbelsteen}</option>
           <option value="terug_vast">{EFFECT_LABELS.terug_vast}</option>
           <option value="vooruit_dobbelsteen">{EFFECT_LABELS.vooruit_dobbelsteen}</option>
+          <option value="verzamel_item">{EFFECT_LABELS.verzamel_item}</option>
         </select>
 
         {effectType === 'terug_vast' && (
@@ -229,7 +274,82 @@ export default function GanzebordTilesManager({
           </div>
         )}
 
-        {effectType !== 'geen' && (
+        {effectType === 'verzamel_item' && (
+          <div className="panel-dark" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+              Het team moet <strong>alle</strong> onderstaande items verzamelen terwijl ze
+              op dit vakje staan (via de RuneLite-plugin, geteld voor het hele team
+              samen). Vind item-ID's op de{' '}
+              <a href="https://oldschool.runescape.wiki" target="_blank" rel="noopener noreferrer">
+                OSRS Wiki
+              </a>
+              .
+            </p>
+
+            {requiredItems.map((item, index) => (
+              <div
+                key={index}
+                style={{
+                  display: 'flex',
+                  gap: 6,
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  paddingBottom: 8,
+                  borderBottom:
+                    index < requiredItems.length - 1 ? '1px dashed rgba(184,134,59,0.3)' : undefined,
+                }}
+              >
+                <input
+                  type="number"
+                  min={1}
+                  value={item.itemId}
+                  onChange={(e) => updateItem(index, { itemId: e.target.value })}
+                  placeholder="Item-ID"
+                  className="input"
+                  style={{ width: 90 }}
+                />
+                <input
+                  type="text"
+                  value={item.itemName}
+                  onChange={(e) => updateItem(index, { itemName: e.target.value })}
+                  placeholder="Naam van het item"
+                  className="input"
+                  style={{ flex: 1, minWidth: 120 }}
+                />
+                <input
+                  type="number"
+                  min={1}
+                  value={item.quantity}
+                  onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
+                  placeholder="Aantal"
+                  className="input"
+                  style={{ width: 70 }}
+                />
+                {requiredItems.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeItemRow(index)}
+                    className="btn-link"
+                    style={{ fontSize: 12 }}
+                  >
+                    verwijder
+                  </button>
+                )}
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addItemRow}
+              className="btn btn-secondary btn-sm"
+              style={{ alignSelf: 'flex-start' }}
+            >
+              + Nog een item toevoegen
+            </button>
+          </div>
+        )}
+
+        {effectType !== 'geen' && effectType !== 'verzamel_item' && (
           <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 14 }}>
             <input
               type="checkbox"

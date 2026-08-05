@@ -84,6 +84,16 @@ export default async function EventPage({
     .select('*')
     .eq('event_id', event.id)
 
+  const { data: tileRequirements } = await supabase
+    .from('board_tile_requirements')
+    .select('*')
+    .in('tile_id', (tiles ?? []).map((t) => t.id))
+
+  const tilesWithRequirements = (tiles ?? []).map((tile) => ({
+    ...tile,
+    requirements: (tileRequirements ?? []).filter((r) => r.tile_id === tile.id),
+  }))
+
   const { data: reveals } = await supabase
     .from('board_tile_reveals')
     .select('tile_number')
@@ -274,7 +284,7 @@ export default async function EventPage({
                 <GanzebordTilesManager
                   eventId={event.id}
                   boardSize={(event.config as any)?.boardSize ?? 63}
-                  initialTiles={(tiles as any) ?? []}
+                  initialTiles={(tilesWithRequirements as any) ?? []}
                 />
               )}
               <GanzebordHistory
