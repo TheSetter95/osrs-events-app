@@ -300,7 +300,6 @@ export default function GanzebordBoard({
                     maxWidth: '100%',
                     textShadow: '0 1px 1px rgba(0,0,0,0.6)',
                     border: '1px solid rgba(0,0,0,0.35)',
-                    border: '1px solid rgba(0,0,0,0.4)',
                   }}
                 >
                   {displayTeamName(t.name)}
