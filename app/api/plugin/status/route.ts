@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfileFromPluginToken } from '@/lib/pluginAuth'
+import { getSubmissionTotal } from '@/lib/submissionTotals'
 
 export async function GET(request: Request) {
   const profile = await getProfileFromPluginToken(request)
@@ -60,18 +61,12 @@ export async function GET(request: Request) {
             .eq('tile_id', tile.id)
 
           for (const req of requirements ?? []) {
-            const { data: progress } = await supabaseAdmin
-              .from('team_item_progress')
-              .select('quantity')
-              .eq('requirement_id', req.id)
-              .eq('team_id', team.id)
-              .maybeSingle()
-
+            const progress = await getSubmissionTotal(req.id, team.id)
             items.push({
               itemId: req.item_id,
               itemName: req.item_name,
               requiredQuantity: req.required_quantity,
-              progress: progress?.quantity ?? 0,
+              progress,
             })
           }
         }

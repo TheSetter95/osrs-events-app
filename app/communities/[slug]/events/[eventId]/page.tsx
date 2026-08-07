@@ -9,6 +9,7 @@ import GanzebordConfigForm from '@/components/GanzebordConfigForm'
 import GanzebordTilesManager from '@/components/GanzebordTilesManager'
 import GanzebordLeaderboard from '@/components/GanzebordLeaderboard'
 import GanzebordHistory from '@/components/GanzebordHistory'
+import ItemSubmissionsPanel from '@/components/ItemSubmissionsPanel'
 import BingoConfigForm from '@/components/BingoConfigForm'
 import BingoTilesManager from '@/components/BingoTilesManager'
 import BingoBoard from '@/components/BingoBoard'
@@ -92,6 +93,31 @@ export default async function EventPage({
   const tilesWithRequirements = (tiles ?? []).map((tile) => ({
     ...tile,
     requirements: (tileRequirements ?? []).filter((r) => r.tile_id === tile.id),
+  }))
+
+  const requirementIds = (tileRequirements ?? []).map((r) => r.id)
+
+  const { data: rawSubmissions } = await supabase
+    .from('item_submissions')
+    .select('*')
+    .in('requirement_id', requirementIds.length > 0 ? requirementIds : ['00000000-0000-0000-0000-000000000000'])
+    .order('created_at', { ascending: false })
+
+  const submitterIds = [...new Set((rawSubmissions ?? []).map((s) => s.submitted_by).filter(Boolean))]
+  let submitterNames: Record<string, string> = {}
+  if (submitterIds.length > 0) {
+    const { data: submitters } = await supabase
+      .from('profiles')
+      .select('id, username, osrs_username')
+      .in('id', submitterIds as string[])
+    submitterNames = Object.fromEntries(
+      (submitters ?? []).map((p) => [p.id, p.osrs_username || p.username])
+    )
+  }
+
+  const submissions = (rawSubmissions ?? []).map((s) => ({
+    ...s,
+    submitterName: submitterNames[s.submitted_by] ?? 'Onbekend',
   }))
 
   const { data: reveals } = await supabase
@@ -251,6 +277,34 @@ export default async function EventPage({
             teams={(teams as any) ?? []}
             boardSize={(event.config as any)?.boardSize ?? 63}
           />
+
+          {((teams as any) ?? [])
+            .map((team: any) => {
+              const tile = (tilesWithRequirements as any[]).find(
+                (t) => t.tile_number === team.board_position && t.effect_type === 'verzamel_item'
+              )
+              if (!tile || !tile.requirements || tile.requirements.length === 0) return null
+
+              const reqIds = tile.requirements.map((r: any) => r.id)
+              const teamSubmissions = submissions.filter(
+                (s) => reqIds.includes(s.requirement_id) && s.team_id === team.id
+              )
+
+              return (
+                <div key={team.id} style={{ marginTop: 16 }}>
+                  <h3 style={{ fontSize: 15, margin: '0 0 4px' }}>
+                    Verzameldoel — {team.name} (vak {team.board_position})
+                  </h3>
+                  <ItemSubmissionsPanel
+                    requirements={tile.requirements}
+                    submissions={teamSubmissions as any}
+                    teamId={team.id}
+                    canSubmit={myTeamIds.includes(team.id)}
+                    isOwner={membership?.role === 'owner'}
+                  />
+                </div>
+              )
+            })}
 
           {isBigBoardView ? (
             <>

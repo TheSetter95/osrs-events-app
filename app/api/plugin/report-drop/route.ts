@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfileFromPluginToken } from '@/lib/pluginAuth'
+import { getSubmissionTotal } from '@/lib/submissionTotals'
 
 export async function POST(request: Request) {
   const profile = await getProfileFromPluginToken(request)
@@ -75,27 +76,21 @@ export async function POST(request: Request) {
 
     if (!requirement) continue
 
-    const { data: existing } = await supabaseAdmin
-      .from('team_item_progress')
-      .select('id, quantity')
-      .eq('requirement_id', requirement.id)
-      .eq('team_id', team.id)
-      .maybeSingle()
+    const currentTotal = await getSubmissionTotal(requirement.id, team.id)
+    if (currentTotal >= requirement.required_quantity) continue // al compleet, niets te melden
 
-    const newQuantity = Math.min((existing?.quantity ?? 0) + quantity, requirement.required_quantity)
+    const amountToLog = Math.min(quantity, requirement.required_quantity - currentTotal)
 
-    if (existing) {
-      await supabaseAdmin
-        .from('team_item_progress')
-        .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
-        .eq('id', existing.id)
-    } else {
-      await supabaseAdmin.from('team_item_progress').insert({
-        requirement_id: requirement.id,
-        team_id: team.id,
-        quantity: newQuantity,
-      })
-    }
+    await supabaseAdmin.from('item_submissions').insert({
+      requirement_id: requirement.id,
+      team_id: team.id,
+      quantity: amountToLog,
+      source: 'plugin',
+      status: 'confirmed', // plugin-data vertrouwen we automatisch
+      submitted_by: profile.id,
+    })
+
+    const newTotal = currentTotal + amountToLog
 
     // Check of ALLE benodigde items voor dit vakje nu compleet zijn (EN-logica)
     const { data: allRequirements } = await supabaseAdmin
@@ -103,23 +98,21 @@ export async function POST(request: Request) {
       .select('id, required_quantity')
       .eq('tile_id', tile.id)
 
-    const { data: allProgress } = await supabaseAdmin
-      .from('team_item_progress')
-      .select('requirement_id, quantity')
-      .eq('team_id', team.id)
-      .in('requirement_id', (allRequirements ?? []).map((r) => r.id))
-
-    const progressByReq = Object.fromEntries((allProgress ?? []).map((p) => [p.requirement_id, p.quantity]))
-    const tileFullyComplete = (allRequirements ?? []).every(
-      (r) => (progressByReq[r.id] ?? 0) >= r.required_quantity
-    )
+    let tileFullyComplete = true
+    for (const req of allRequirements ?? []) {
+      const total = req.id === requirement.id ? newTotal : await getSubmissionTotal(req.id, team.id)
+      if (total < req.required_quantity) {
+        tileFullyComplete = false
+        break
+      }
+    }
 
     matchedCount++
     updates.push({
       team: team.name,
       tile: tile.tile_number,
       item: requirement.item_name ?? itemName,
-      progress: `${newQuantity}/${requirement.required_quantity}`,
+      progress: `${newTotal}/${requirement.required_quantity}`,
       tileFullyComplete,
     })
   }
