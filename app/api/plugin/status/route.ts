@@ -57,14 +57,19 @@ export async function GET(request: Request) {
         if (tile.effect_type === 'verzamel_item') {
           const { data: requirements } = await supabaseAdmin
             .from('board_tile_requirements')
-            .select('id, item_id, item_name, required_quantity')
+            .select('id, label, required_quantity')
             .eq('tile_id', tile.id)
 
           for (const req of requirements ?? []) {
+            const { data: acceptedItems } = await supabaseAdmin
+              .from('requirement_accepted_items')
+              .select('item_id, item_name')
+              .eq('requirement_id', req.id)
+
             const progress = await getSubmissionTotal(req.id, team.id)
             items.push({
-              itemId: req.item_id,
-              itemName: req.item_name,
+              label: req.label,
+              acceptedItems: (acceptedItems ?? []).map((a) => ({ itemId: a.item_id, itemName: a.item_name })),
               requiredQuantity: req.required_quantity,
               progress,
             })

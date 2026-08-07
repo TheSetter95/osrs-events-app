@@ -90,9 +90,19 @@ export default async function EventPage({
     .select('*')
     .in('tile_id', (tiles ?? []).map((t) => t.id))
 
+  const { data: acceptedItems } = await supabase
+    .from('requirement_accepted_items')
+    .select('*')
+    .in('requirement_id', (tileRequirements ?? []).map((r) => r.id))
+
+  const requirementsWithItems = (tileRequirements ?? []).map((r) => ({
+    ...r,
+    accepted_items: (acceptedItems ?? []).filter((a) => a.requirement_id === r.id),
+  }))
+
   const tilesWithRequirements = (tiles ?? []).map((tile) => ({
     ...tile,
-    requirements: (tileRequirements ?? []).filter((r) => r.tile_id === tile.id),
+    requirements: requirementsWithItems.filter((r) => r.tile_id === tile.id),
   }))
 
   const requirementIds = (tileRequirements ?? []).map((r) => r.id)

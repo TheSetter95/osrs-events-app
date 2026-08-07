@@ -3,11 +3,13 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 
+type AcceptedItem = { item_id: number; item_name: string }
+
 type Requirement = {
   id?: string
-  item_id: number
-  item_name: string
+  label: string
   required_quantity: number
+  accepted_items?: AcceptedItem[]
 }
 
 type Tile = {
@@ -31,9 +33,14 @@ const EFFECT_LABELS: Record<string, string> = {
   verzamel_item: 'Verzamel item(s) (via RuneLite-plugin, teamteller)',
 }
 
-type DraftItem = { itemId: string; itemName: string; quantity: number }
+// Eén "doel" (bv. "Verzamel een Visage") kan meerdere acceptabele item-varianten
+// hebben (bv. de 4 verschillende Visages) — welke dan ook telt mee voor hetzelfde,
+// gezamenlijke aantal.
+type DraftItem = { itemId: string; itemName: string }
+type DraftGroup = { label: string; quantity: number; items: DraftItem[] }
 
-const EMPTY_DRAFT_ITEM: DraftItem = { itemId: '', itemName: '', quantity: 1 }
+const EMPTY_DRAFT_ITEM: DraftItem = { itemId: '', itemName: '' }
+const EMPTY_DRAFT_GROUP = (): DraftGroup => ({ label: '', quantity: 1, items: [{ ...EMPTY_DRAFT_ITEM }] })
 
 export default function GanzebordTilesManager({
   eventId,
@@ -52,23 +59,45 @@ export default function GanzebordTilesManager({
     'geen' | 'terug_dobbelsteen' | 'terug_vast' | 'vooruit_dobbelsteen' | 'verzamel_item'
   >('geen')
   const [effectValue, setEffectValue] = useState(3)
-  const [requiredItems, setRequiredItems] = useState<DraftItem[]>([{ ...EMPTY_DRAFT_ITEM }])
+  const [groups, setGroups] = useState<DraftGroup[]>([EMPTY_DRAFT_GROUP()])
   const [transferable, setTransferable] = useState(false)
   const [glowColor, setGlowColor] = useState('')
   const [editingTileId, setEditingTileId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function updateItem(index: number, patch: Partial<DraftItem>) {
-    setRequiredItems((items) => items.map((it, i) => (i === index ? { ...it, ...patch } : it)))
+  function updateGroup(groupIndex: number, patch: Partial<DraftGroup>) {
+    setGroups((gs) => gs.map((g, i) => (i === groupIndex ? { ...g, ...patch } : g)))
   }
 
-  function addItemRow() {
-    setRequiredItems((items) => [...items, { ...EMPTY_DRAFT_ITEM }])
+  function addGroup() {
+    setGroups((gs) => [...gs, EMPTY_DRAFT_GROUP()])
   }
 
-  function removeItemRow(index: number) {
-    setRequiredItems((items) => items.filter((_, i) => i !== index))
+  function removeGroup(groupIndex: number) {
+    setGroups((gs) => gs.filter((_, i) => i !== groupIndex))
+  }
+
+  function updateItem(groupIndex: number, itemIndex: number, patch: Partial<DraftItem>) {
+    setGroups((gs) =>
+      gs.map((g, i) =>
+        i === groupIndex
+          ? { ...g, items: g.items.map((it, j) => (j === itemIndex ? { ...it, ...patch } : it)) }
+          : g
+      )
+    )
+  }
+
+  function addItemToGroup(groupIndex: number) {
+    setGroups((gs) =>
+      gs.map((g, i) => (i === groupIndex ? { ...g, items: [...g.items, { ...EMPTY_DRAFT_ITEM }] } : g))
+    )
+  }
+
+  function removeItemFromGroup(groupIndex: number, itemIndex: number) {
+    setGroups((gs) =>
+      gs.map((g, i) => (i === groupIndex ? { ...g, items: g.items.filter((_, j) => j !== itemIndex) } : g))
+    )
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -88,9 +117,13 @@ export default function GanzebordTilesManager({
         transferable,
         wikiUrl,
         glowColor,
-        requiredItems:
+        requirementGroups:
           effectType === 'verzamel_item'
-            ? requiredItems.map((it) => ({ itemId: it.itemId, itemName: it.itemName, quantity: it.quantity }))
+            ? groups.map((g) => ({
+                label: g.label,
+                quantity: g.quantity,
+                items: g.items.map((it) => ({ itemId: it.itemId, itemName: it.itemName })),
+              }))
             : null,
       }),
     })
@@ -123,14 +156,17 @@ export default function GanzebordTilesManager({
     setEffectValue(tile.effect_value ?? 3)
     setTransferable(tile.transferable)
     setGlowColor(tile.glow_color ?? '')
-    setRequiredItems(
+    setGroups(
       tile.requirements && tile.requirements.length > 0
         ? tile.requirements.map((r) => ({
-            itemId: String(r.item_id),
-            itemName: r.item_name,
+            label: r.label,
             quantity: r.required_quantity,
+            items:
+              r.accepted_items && r.accepted_items.length > 0
+                ? r.accepted_items.map((a) => ({ itemId: String(a.item_id), itemName: a.item_name }))
+                : [{ ...EMPTY_DRAFT_ITEM }],
           }))
-        : [{ ...EMPTY_DRAFT_ITEM }]
+        : [EMPTY_DRAFT_GROUP()]
     )
     document.getElementById('ganzebord-tile-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
@@ -144,7 +180,7 @@ export default function GanzebordTilesManager({
     setEffectValue(3)
     setTransferable(false)
     setGlowColor('')
-    setRequiredItems([{ ...EMPTY_DRAFT_ITEM }])
+    setGroups([EMPTY_DRAFT_GROUP()])
   }
 
   return (
@@ -189,7 +225,10 @@ export default function GanzebordTilesManager({
                     <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 12 }} className="text-muted">
                       {tile.requirements.map((r, i) => (
                         <li key={r.id ?? i}>
-                          {r.required_quantity}x {r.item_name} (ID {r.item_id})
+                          {r.required_quantity}x {r.label}
+                          {r.accepted_items && r.accepted_items.length > 1 && (
+                            <> (elk van: {r.accepted_items.map((a) => a.item_name).join(', ')})</>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -275,76 +314,100 @@ export default function GanzebordTilesManager({
         )}
 
         {effectType === 'verzamel_item' && (
-          <div className="panel-dark" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
-              Het team moet <strong>alle</strong> onderstaande items verzamelen terwijl ze
-              op dit vakje staan (via de RuneLite-plugin, geteld voor het hele team
-              samen). Vind item-ID's op de{' '}
-              <a href="https://oldschool.runescape.wiki" target="_blank" rel="noopener noreferrer">
-                OSRS Wiki
-              </a>
-              .
+              Het team moet <strong>elk van onderstaande doelen</strong> behalen terwijl
+              ze op dit vakje staan. Een doel kan één vast item zijn, of meerdere
+              acceptabele varianten — bv. "Verzamel een Visage" met alle 4 de Visages
+              als optie; welke dan ook telt mee voor hetzelfde aantal.
             </p>
 
-            {requiredItems.map((item, index) => (
-              <div
-                key={index}
-                style={{
-                  display: 'flex',
-                  gap: 6,
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  paddingBottom: 8,
-                  borderBottom:
-                    index < requiredItems.length - 1 ? '1px dashed rgba(184,134,59,0.3)' : undefined,
-                }}
-              >
-                <input
-                  type="number"
-                  min={1}
-                  value={item.itemId}
-                  onChange={(e) => updateItem(index, { itemId: e.target.value })}
-                  placeholder="Item-ID"
-                  className="input"
-                  style={{ width: 90 }}
-                />
-                <input
-                  type="text"
-                  value={item.itemName}
-                  onChange={(e) => updateItem(index, { itemName: e.target.value })}
-                  placeholder="Naam van het item"
-                  className="input"
-                  style={{ flex: 1, minWidth: 120 }}
-                />
-                <input
-                  type="number"
-                  min={1}
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, { quantity: Number(e.target.value) })}
-                  placeholder="Aantal"
-                  className="input"
-                  style={{ width: 70 }}
-                />
-                {requiredItems.length > 1 && (
+            {groups.map((group, groupIndex) => (
+              <div key={groupIndex} className="panel-dark" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    value={group.label}
+                    onChange={(e) => updateGroup(groupIndex, { label: e.target.value })}
+                    placeholder="Naam van dit doel (optioneel, bv. 'Visage')"
+                    className="input"
+                    style={{ flex: 1, minWidth: 140 }}
+                  />
+                  <label className="field-label" style={{ margin: 0 }}>Aantal nodig:</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={group.quantity}
+                    onChange={(e) => updateGroup(groupIndex, { quantity: Number(e.target.value) })}
+                    className="input"
+                    style={{ width: 70 }}
+                  />
+                  {groups.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeGroup(groupIndex)}
+                      className="btn-link"
+                      style={{ fontSize: 12 }}
+                    >
+                      dit doel verwijderen
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ paddingLeft: 12, borderLeft: '2px solid rgba(184,134,59,0.3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span className="text-muted" style={{ fontSize: 11 }}>
+                    Acceptabele item(s) voor dit doel — welke dan ook telt mee:
+                  </span>
+                  {group.items.map((item, itemIndex) => (
+                    <div key={itemIndex} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="number"
+                        min={1}
+                        value={item.itemId}
+                        onChange={(e) => updateItem(groupIndex, itemIndex, { itemId: e.target.value })}
+                        placeholder="Item-ID"
+                        className="input"
+                        style={{ width: 90 }}
+                      />
+                      <input
+                        type="text"
+                        value={item.itemName}
+                        onChange={(e) => updateItem(groupIndex, itemIndex, { itemName: e.target.value })}
+                        placeholder="Naam van het item"
+                        className="input"
+                        style={{ flex: 1, minWidth: 120 }}
+                      />
+                      {group.items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItemFromGroup(groupIndex, itemIndex)}
+                          className="btn-link"
+                          style={{ fontSize: 12 }}
+                        >
+                          verwijder
+                        </button>
+                      )}
+                    </div>
+                  ))}
                   <button
                     type="button"
-                    onClick={() => removeItemRow(index)}
-                    className="btn-link"
-                    style={{ fontSize: 12 }}
+                    onClick={() => addItemToGroup(groupIndex)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ alignSelf: 'flex-start' }}
                   >
-                    verwijder
+                    + Alternatief item toevoegen
                   </button>
-                )}
+                </div>
               </div>
             ))}
 
             <button
               type="button"
-              onClick={addItemRow}
+              onClick={addGroup}
               className="btn btn-secondary btn-sm"
               style={{ alignSelf: 'flex-start' }}
             >
-              + Nog een item toevoegen
+              + Nog een verzameldoel toevoegen
             </button>
           </div>
         )}

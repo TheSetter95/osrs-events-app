@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     transferable,
     wikiUrl,
     glowColor,
-    requiredItems, // [{ itemId, itemName, quantity }, ...]
+    requirementGroups, // [{ label, quantity, items: [{ itemId, itemName }, ...] }, ...]
   } = await request.json()
 
   if (!description || typeof description !== 'string' || !description.trim()) {
@@ -34,18 +34,29 @@ export async function POST(request: Request) {
   }
 
   if (effectType === 'verzamel_item') {
-    if (!Array.isArray(requiredItems) || requiredItems.length === 0) {
+    if (!Array.isArray(requirementGroups) || requirementGroups.length === 0) {
       return NextResponse.json(
-        { error: 'Voeg minstens één benodigd item toe voor een verzameldoel.' },
+        { error: 'Voeg minstens één verzameldoel toe.' },
         { status: 400 }
       )
     }
-    for (const item of requiredItems) {
-      if (!item.itemId || !item.itemName?.trim() || !item.quantity || item.quantity < 1) {
+    for (const group of requirementGroups) {
+      if (!group.quantity || group.quantity < 1) {
+        return NextResponse.json({ error: 'Elk doel heeft een geldig aantal nodig.' }, { status: 400 })
+      }
+      if (!Array.isArray(group.items) || group.items.length === 0) {
         return NextResponse.json(
-          { error: 'Elk item heeft een geldig item-ID, naam en aantal nodig.' },
+          { error: 'Elk doel heeft minstens één (acceptabel) item nodig.' },
           { status: 400 }
         )
+      }
+      for (const item of group.items) {
+        if (!item.itemId || !item.itemName?.trim()) {
+          return NextResponse.json(
+            { error: 'Elk item heeft een geldig item-ID en naam nodig.' },
+            { status: 400 }
+          )
+        }
       }
     }
   }
@@ -78,24 +89,45 @@ export async function POST(request: Request) {
     )
   }
 
-  // Bestaande items voor dit vakje vervangen door de nieuwe lijst
+  // Bestaande doelen voor dit vakje vervangen door de nieuwe lijst
+  // (requirement_accepted_items ruimt vanzelf mee op via on delete cascade)
   await supabase.from('board_tile_requirements').delete().eq('tile_id', tile.id)
 
-  if (effectType === 'verzamel_item' && Array.isArray(requiredItems)) {
-    const rows = requiredItems.map((item: any) => ({
-      tile_id: tile.id,
-      item_id: Number(item.itemId),
-      item_name: item.itemName.trim(),
-      required_quantity: Number(item.quantity),
-    }))
+  if (effectType === 'verzamel_item' && Array.isArray(requirementGroups)) {
+    for (const group of requirementGroups) {
+      const label = group.label?.trim() || group.items.map((i: any) => i.itemName.trim()).join(' of ')
 
-    const { error: reqError } = await supabase.from('board_tile_requirements').insert(rows)
+      const { data: requirement, error: reqError } = await supabase
+        .from('board_tile_requirements')
+        .insert({
+          tile_id: tile.id,
+          label,
+          required_quantity: Number(group.quantity),
+        })
+        .select()
+        .single()
 
-    if (reqError) {
-      return NextResponse.json(
-        { error: 'Vakje opgeslagen, maar items opslaan mislukt: ' + reqError.message },
-        { status: 500 }
-      )
+      if (reqError || !requirement) {
+        return NextResponse.json(
+          { error: 'Vakje opgeslagen, maar een doel opslaan mislukt: ' + reqError?.message },
+          { status: 500 }
+        )
+      }
+
+      const itemRows = group.items.map((item: any) => ({
+        requirement_id: requirement.id,
+        item_id: Number(item.itemId),
+        item_name: item.itemName.trim(),
+      }))
+
+      const { error: itemsError } = await supabase.from('requirement_accepted_items').insert(itemRows)
+
+      if (itemsError) {
+        return NextResponse.json(
+          { error: 'Vakje opgeslagen, maar items opslaan mislukt: ' + itemsError.message },
+          { status: 500 }
+        )
+      }
     }
   }
 

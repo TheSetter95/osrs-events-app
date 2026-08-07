@@ -17,9 +17,9 @@ type Submission = {
 
 type Requirement = {
   id: string
-  item_id: number
-  item_name: string
+  label: string
   required_quantity: number
+  accepted_items?: { item_id: number; item_name: string }[]
 }
 
 function timeAgo(dateStr: string) {
@@ -107,8 +107,8 @@ export default function ItemSubmissionsPanel({
         return (
           <div key={req.id} className="panel-dark" style={{ padding: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <strong>
-                {req.item_name} — {total}/{req.required_quantity}
+              <strong title={(req.accepted_items ?? []).map((a) => a.item_name).join(', ')}>
+                {req.label} — {total}/{req.required_quantity}
                 {hasPending && (
                   <span className="text-muted" style={{ fontSize: 12, marginLeft: 6 }}>
                     ⏳ nog te bevestigen

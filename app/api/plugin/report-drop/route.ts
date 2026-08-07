@@ -66,14 +66,23 @@ export async function POST(request: Request) {
 
     if (!tile) continue
 
-    // Matcht dit specifieke item met één van de benodigde items van dit vakje?
-    const { data: requirement } = await supabaseAdmin
+    // Alle doelen op dit vakje, met hun acceptabele item-varianten
+    const { data: requirements } = await supabaseAdmin
       .from('board_tile_requirements')
-      .select('id, item_id, item_name, required_quantity')
+      .select('id, label, required_quantity')
       .eq('tile_id', tile.id)
-      .eq('item_id', itemId)
-      .maybeSingle()
 
+    if (!requirements || requirements.length === 0) continue
+
+    const { data: acceptedItems } = await supabaseAdmin
+      .from('requirement_accepted_items')
+      .select('requirement_id, item_id, item_name')
+      .in('requirement_id', requirements.map((r) => r.id))
+
+    const matchedAcceptedItem = (acceptedItems ?? []).find((a) => a.item_id === Number(itemId))
+    if (!matchedAcceptedItem) continue
+
+    const requirement = requirements.find((r) => r.id === matchedAcceptedItem.requirement_id)
     if (!requirement) continue
 
     const currentTotal = await getSubmissionTotal(requirement.id, team.id)
@@ -92,14 +101,9 @@ export async function POST(request: Request) {
 
     const newTotal = currentTotal + amountToLog
 
-    // Check of ALLE benodigde items voor dit vakje nu compleet zijn (EN-logica)
-    const { data: allRequirements } = await supabaseAdmin
-      .from('board_tile_requirements')
-      .select('id, required_quantity')
-      .eq('tile_id', tile.id)
-
+    // Check of ALLE benodigde doelen voor dit vakje nu compleet zijn (EN-logica)
     let tileFullyComplete = true
-    for (const req of allRequirements ?? []) {
+    for (const req of requirements) {
       const total = req.id === requirement.id ? newTotal : await getSubmissionTotal(req.id, team.id)
       if (total < req.required_quantity) {
         tileFullyComplete = false
@@ -111,7 +115,7 @@ export async function POST(request: Request) {
     updates.push({
       team: team.name,
       tile: tile.tile_number,
-      item: requirement.item_name ?? itemName,
+      item: requirement.label ?? matchedAcceptedItem.item_name ?? itemName,
       progress: `${newTotal}/${requirement.required_quantity}`,
       tileFullyComplete,
     })
