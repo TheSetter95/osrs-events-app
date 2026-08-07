@@ -37,10 +37,15 @@ const EFFECT_LABELS: Record<string, string> = {
 // hebben (bv. de 4 verschillende Visages) — welke dan ook telt mee voor hetzelfde,
 // gezamenlijke aantal.
 type DraftItem = { itemId: string; itemName: string }
-type DraftGroup = { label: string; quantity: number; items: DraftItem[] }
+type DraftGroup = { label: string; quantity: number; useAlternatives: boolean; items: DraftItem[] }
 
 const EMPTY_DRAFT_ITEM: DraftItem = { itemId: '', itemName: '' }
-const EMPTY_DRAFT_GROUP = (): DraftGroup => ({ label: '', quantity: 1, items: [{ ...EMPTY_DRAFT_ITEM }] })
+const EMPTY_DRAFT_GROUP = (): DraftGroup => ({
+  label: '',
+  quantity: 1,
+  useAlternatives: false,
+  items: [{ ...EMPTY_DRAFT_ITEM }],
+})
 
 export default function GanzebordTilesManager({
   eventId,
@@ -161,6 +166,7 @@ export default function GanzebordTilesManager({
         ? tile.requirements.map((r) => ({
             label: r.label,
             quantity: r.required_quantity,
+            useAlternatives: (r.accepted_items?.length ?? 0) > 1,
             items:
               r.accepted_items && r.accepted_items.length > 0
                 ? r.accepted_items.map((a) => ({ itemId: String(a.item_id), itemName: a.item_name }))
@@ -324,80 +330,141 @@ export default function GanzebordTilesManager({
 
             {groups.map((group, groupIndex) => (
               <div key={groupIndex} className="panel-dark" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input
-                    type="text"
-                    value={group.label}
-                    onChange={(e) => updateGroup(groupIndex, { label: e.target.value })}
-                    placeholder="Naam van dit doel (optioneel, bv. 'Visage')"
-                    className="input"
-                    style={{ flex: 1, minWidth: 140 }}
-                  />
-                  <label className="field-label" style={{ margin: 0 }}>Aantal nodig:</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={group.quantity}
-                    onChange={(e) => updateGroup(groupIndex, { quantity: Number(e.target.value) })}
-                    className="input"
-                    style={{ width: 70 }}
-                  />
-                  {groups.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeGroup(groupIndex)}
-                      className="btn-link"
-                      style={{ fontSize: 12 }}
-                    >
-                      dit doel verwijderen
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ paddingLeft: 12, borderLeft: '2px solid rgba(184,134,59,0.3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span className="text-muted" style={{ fontSize: 11 }}>
-                    Acceptabele item(s) voor dit doel — welke dan ook telt mee:
-                  </span>
-                  {group.items.map((item, itemIndex) => (
-                    <div key={itemIndex} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                {!group.useAlternatives ? (
+                  // Simpele weergave: precies zoals voorheen, één item per doel
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="number"
+                      min={1}
+                      value={group.items[0]?.itemId ?? ''}
+                      onChange={(e) => updateItem(groupIndex, 0, { itemId: e.target.value })}
+                      placeholder="Item-ID"
+                      className="input"
+                      style={{ width: 90 }}
+                    />
+                    <input
+                      type="text"
+                      value={group.items[0]?.itemName ?? ''}
+                      onChange={(e) => updateItem(groupIndex, 0, { itemName: e.target.value })}
+                      placeholder="Naam van het item"
+                      className="input"
+                      style={{ flex: 1, minWidth: 120 }}
+                    />
+                    <label className="field-label" style={{ margin: 0 }}>Aantal:</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={group.quantity}
+                      onChange={(e) => updateGroup(groupIndex, { quantity: Number(e.target.value) })}
+                      className="input"
+                      style={{ width: 70 }}
+                    />
+                    {groups.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeGroup(groupIndex)}
+                        className="btn-link"
+                        style={{ fontSize: 12 }}
+                      >
+                        verwijder
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  // Uitgebreide weergave: een naam voor het doel + meerdere acceptabele varianten
+                  <>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        value={group.label}
+                        onChange={(e) => updateGroup(groupIndex, { label: e.target.value })}
+                        placeholder="Naam van dit doel (bv. 'Visage')"
+                        className="input"
+                        style={{ flex: 1, minWidth: 140 }}
+                      />
+                      <label className="field-label" style={{ margin: 0 }}>Aantal nodig:</label>
                       <input
                         type="number"
                         min={1}
-                        value={item.itemId}
-                        onChange={(e) => updateItem(groupIndex, itemIndex, { itemId: e.target.value })}
-                        placeholder="Item-ID"
+                        value={group.quantity}
+                        onChange={(e) => updateGroup(groupIndex, { quantity: Number(e.target.value) })}
                         className="input"
-                        style={{ width: 90 }}
+                        style={{ width: 70 }}
                       />
-                      <input
-                        type="text"
-                        value={item.itemName}
-                        onChange={(e) => updateItem(groupIndex, itemIndex, { itemName: e.target.value })}
-                        placeholder="Naam van het item"
-                        className="input"
-                        style={{ flex: 1, minWidth: 120 }}
-                      />
-                      {group.items.length > 1 && (
+                      {groups.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => removeItemFromGroup(groupIndex, itemIndex)}
+                          onClick={() => removeGroup(groupIndex)}
                           className="btn-link"
                           style={{ fontSize: 12 }}
                         >
-                          verwijder
+                          dit doel verwijderen
                         </button>
                       )}
                     </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => addItemToGroup(groupIndex)}
-                    className="btn btn-secondary btn-sm"
-                    style={{ alignSelf: 'flex-start' }}
-                  >
-                    + Alternatief item toevoegen
-                  </button>
-                </div>
+
+                    <div style={{ paddingLeft: 12, borderLeft: '2px solid rgba(184,134,59,0.3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span className="text-muted" style={{ fontSize: 11 }}>
+                        Acceptabele item(s) voor dit doel — welke dan ook telt mee:
+                      </span>
+                      {group.items.map((item, itemIndex) => (
+                        <div key={itemIndex} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.itemId}
+                            onChange={(e) => updateItem(groupIndex, itemIndex, { itemId: e.target.value })}
+                            placeholder="Item-ID"
+                            className="input"
+                            style={{ width: 90 }}
+                          />
+                          <input
+                            type="text"
+                            value={item.itemName}
+                            onChange={(e) => updateItem(groupIndex, itemIndex, { itemName: e.target.value })}
+                            placeholder="Naam van het item"
+                            className="input"
+                            style={{ flex: 1, minWidth: 120 }}
+                          />
+                          {group.items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeItemFromGroup(groupIndex, itemIndex)}
+                              className="btn-link"
+                              style={{ fontSize: 12 }}
+                            >
+                              verwijder
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => addItemToGroup(groupIndex)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ alignSelf: 'flex-start' }}
+                      >
+                        + Alternatief item toevoegen
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={group.useAlternatives}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      updateGroup(groupIndex, {
+                        useAlternatives: checked,
+                        // Bij uitzetten: terug naar precies één item, geen data kwijtraken van het eerste
+                        items: checked ? group.items : [group.items[0] ?? { ...EMPTY_DRAFT_ITEM }],
+                      })
+                    }}
+                  />
+                  Alternatieve items toestaan (bv. "elk van de 4 Visages telt mee")
+                </label>
               </div>
             ))}
 
