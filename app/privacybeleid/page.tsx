@@ -11,7 +11,7 @@ export default function PrivacyPage() {
         &larr; Terug naar home
       </Link>
       <h1>Privacybeleid</h1>
-      <p className="text-muted" style={{ fontSize: 13 }}>Laatst bijgewerkt: juli 2026</p>
+      <p className="text-muted" style={{ fontSize: 13 }}>Laatst bijgewerkt: augustus 2026</p>
 
       <div className="panel-dark" style={{ lineHeight: 1.7 }}>
         <p>
@@ -31,10 +31,19 @@ export default function PrivacyPage() {
           <li>je OSRS-gebruikersnaam (optioneel)</li>
           <li>community-, team- en event-gegevens die je aanmaakt of invoert</li>
           <li>een community-logo, als je er een uploadt</li>
+          <li>screenshots (als link) die je instuurt ter onderbouwing van een verzameldoel</li>
         </ul>
         <p><strong>Automatisch, door gebruik van de Discord-bot:</strong></p>
         <ul>
           <li>je Discord-ID, wanneer je je aanmeldt voor een event via de bot</li>
+        </ul>
+        <p><strong>Automatisch, door gebruik van de RuneLite-plugin (optioneel):</strong></p>
+        <ul>
+          <li>
+            item-drops die je in-game ontvangt (alleen item-naam en aantal), voor het
+            bijhouden van team-verzameldoelen — dit gebeurt alleen als je zelf een
+            plugin-sleutel hebt aangemaakt en ingevuld
+          </li>
         </ul>
         <p>
           We verzamelen geen wachtwoorden (inloggen verloopt volledig via Discord) en
@@ -56,13 +65,23 @@ export default function PrivacyPage() {
         <ul>
           <li><strong>Discord</strong> — voor inloggen (OAuth) en de bot-functionaliteit</li>
           <li><strong>Supabase</strong> — voor de database, authenticatie en opslag van geüploade afbeeldingen</li>
-          <li><strong>Vercel</strong> — voor het hosten van de website</li>
+          <li><strong>Vercel</strong> — voor het hosten van de website, en het verwerken van verzoeken vanuit zowel de website als de RuneLite-plugin</li>
           <li><strong>Fly.io</strong> — voor het hosten van de Discord-bot</li>
         </ul>
         <p>
           Binnen een community zijn je Discord-naam, OSRS-naam en event-deelname
           zichtbaar voor andere leden van diezelfde community — dat is nodig voor de
           werking van de Dienst (bv. teamindeling, ranglijsten).
+        </p>
+        <p>
+          <strong>Over IP-adressen:</strong> zoals bij vrijwel elke website of app die
+          via internet werkt, ontvangt onze hostingpartij (Vercel) bij elk verzoek
+          — of dat nu via de website of via de RuneLite-plugin gebeurt — onvermijdelijk
+          het IP-adres van de afzender, simpelweg als onderdeel van hoe een
+          netwerkverzoek functioneert. Dit is standaard technische verzoek-metadata bij
+          Vercel, geen gegeven dat wíj actief opvragen, apart opslaan of gebruiken
+          binnen de Dienst zelf. Zie Vercel's eigen privacybeleid voor hoe zij met deze
+          technische logs omgaan.
         </p>
 
         <h2 style={{ fontSize: 18 }}>4. Hoe lang we gegevens bewaren</h2>
@@ -92,7 +111,18 @@ export default function PrivacyPage() {
           Supabase-authenticatie). We gebruiken geen tracking- of advertentiecookies.
         </p>
 
-        <h2 style={{ fontSize: 18 }}>7. Beveiliging</h2>
+        <h2 style={{ fontSize: 18 }}>7. RuneLite-plugin</h2>
+        <p>
+          De RuneLite-plugin is optioneel en werkt alleen als je er zelf een
+          plugin-sleutel voor aanmaakt en invult. De plugin verstuurt uitsluitend
+          item-naam en aantal bij een relevante in-game drop naar onze server — geen
+          overige accountgegevens, geen wachtwoorden, geen sessiegegevens. De plugin is
+          niet gecontroleerd of geverifieerd door de RuneLite-ontwikkelaars zelf (zoals
+          gebruikelijk bij Plugin Hub-plugins van derden), maar wordt door ons
+          onderhouden volgens hetzelfde privacybeleid als de rest van de Dienst.
+        </p>
+
+        <h2 style={{ fontSize: 18 }}>8. Beveiliging</h2>
         <p>
           We nemen redelijke technische maatregelen om je gegevens te beschermen
           (waaronder toegangsbeperkingen per rol/community, zodat gebruikers alleen bij
@@ -100,13 +130,13 @@ export default function PrivacyPage() {
           veilig.
         </p>
 
-        <h2 style={{ fontSize: 18 }}>8. Wijzigingen</h2>
+        <h2 style={{ fontSize: 18 }}>9. Wijzigingen</h2>
         <p>
           We kunnen dit privacybeleid van tijd tot tijd bijwerken. Bij belangrijke
           wijzigingen passen we de datum bovenaan deze pagina aan.
         </p>
 
-        <h2 style={{ fontSize: 18 }}>9. Contact</h2>
+        <h2 style={{ fontSize: 18 }}>10. Contact</h2>
         <p>
           Vragen over dit privacybeleid of je gegevens kun je stellen via de
           community-eigenaar of de beheerder van deze Dienst.
