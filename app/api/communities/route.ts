@@ -16,6 +16,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Je moet ingelogd zijn.' }, { status: 401 })
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('can_create_communities')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.can_create_communities) {
+    return NextResponse.json(
+      { error: 'Je hebt nog geen toestemming om een community aan te maken. Vraag de sitebeheerder om dit voor je aan te zetten.' },
+      { status: 403 }
+    )
+  }
+
   const { name } = await request.json()
 
   if (!name || typeof name !== 'string' || !name.trim()) {
