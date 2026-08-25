@@ -213,7 +213,15 @@ export default function ItemSubmissionsPanel({
                             </button>
                           </>
                         ) : (
-                          <button onClick={() => setRejectingId(s.id)} className="btn btn-secondary on-parchment btn-sm">
+                          <button
+                            onClick={() => setRejectingId(s.id)}
+                            className="btn btn-sm"
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid var(--danger-light)',
+                              color: 'var(--danger-light)',
+                            }}
+                          >
                             ❌ Afwijzen
                           </button>
                         )}
