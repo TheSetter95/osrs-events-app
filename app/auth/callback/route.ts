@@ -10,12 +10,20 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
   const next = searchParams.get('next')
 
+  const safeNext = next && next.startsWith('/') ? next : '/'
+
   if (code) {
     const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
-  }
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
 
-  const safeNext = next && next.startsWith('/') ? next : '/'
+    if (error) {
+      // Zichtbaar maken i.p.v. stilletjes doorsturen alsof er niets gebeurd is
+      console.error('Inloggen mislukt bij het inwisselen van de code:', error)
+      const errorUrl = new URL('/', origin)
+      errorUrl.searchParams.set('login_error', error.message)
+      return NextResponse.redirect(errorUrl)
+    }
+  }
 
   return NextResponse.redirect(`${origin}${safeNext}`)
 }
