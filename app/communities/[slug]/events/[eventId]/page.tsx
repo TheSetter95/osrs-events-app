@@ -140,6 +140,54 @@ export default async function EventPage({
     .select('*')
     .eq('event_id', event.id)
 
+  const { data: bingoTileRequirements } = await supabase
+    .from('bingo_tile_requirements')
+    .select('*')
+    .in('tile_id', (bingoTiles ?? []).map((t) => t.id))
+
+  const { data: bingoAcceptedItems } = await supabase
+    .from('bingo_requirement_accepted_items')
+    .select('*')
+    .in('requirement_id', (bingoTileRequirements ?? []).map((r) => r.id))
+
+  const bingoRequirementsWithItems = (bingoTileRequirements ?? []).map((r) => ({
+    ...r,
+    accepted_items: (bingoAcceptedItems ?? []).filter((a) => a.requirement_id === r.id),
+  }))
+
+  const bingoTilesWithRequirements = (bingoTiles ?? []).map((tile) => ({
+    ...tile,
+    requirements: bingoRequirementsWithItems.filter((r) => r.tile_id === tile.id),
+  }))
+
+  const bingoRequirementIds = (bingoTileRequirements ?? []).map((r) => r.id)
+
+  const { data: rawBingoSubmissions } = await supabase
+    .from('bingo_item_submissions')
+    .select('*')
+    .in(
+      'requirement_id',
+      bingoRequirementIds.length > 0 ? bingoRequirementIds : ['00000000-0000-0000-0000-000000000000']
+    )
+    .order('created_at', { ascending: false })
+
+  const bingoSubmitterIds = [...new Set((rawBingoSubmissions ?? []).map((s) => s.submitted_by).filter(Boolean))]
+  let bingoSubmitterNames: Record<string, string> = {}
+  if (bingoSubmitterIds.length > 0) {
+    const { data: submitters } = await supabase
+      .from('profiles')
+      .select('id, username, osrs_username')
+      .in('id', bingoSubmitterIds as string[])
+    bingoSubmitterNames = Object.fromEntries(
+      (submitters ?? []).map((p) => [p.id, p.osrs_username || p.username])
+    )
+  }
+
+  const bingoSubmissions = (rawBingoSubmissions ?? []).map((s) => ({
+    ...s,
+    submitterName: bingoSubmitterNames[s.submitted_by] ?? 'Onbekend',
+  }))
+
   const { data: bingoCompletions } = await supabase
     .from('bingo_completions')
     .select('tile_id, team_id')
@@ -371,7 +419,7 @@ export default async function EventPage({
           )}
           <BingoBoard
             gridSize={(event.config as any)?.gridSize ?? 5}
-            tiles={(bingoTiles as any) ?? []}
+            tiles={(bingoTilesWithRequirements as any) ?? []}
             teams={(teams as any) ?? []}
             completions={(bingoCompletions as any) ?? []}
             canManage={canManage}
@@ -381,11 +429,51 @@ export default async function EventPage({
             completions={(bingoCompletions as any) ?? []}
             totalTiles={((event.config as any)?.gridSize ?? 5) ** 2}
           />
+
+          {((teams as any) ?? []).map((team: any) => {
+            const openTiles = (bingoTilesWithRequirements as any[]).filter(
+              (t) =>
+                t.effect_type === 'verzamel_item' &&
+                t.requirements?.length > 0 &&
+                !(bingoCompletions ?? []).some((c) => c.tile_id === t.id && c.team_id === team.id)
+            )
+            if (openTiles.length === 0) return null
+
+            return (
+              <div key={team.id} style={{ marginTop: 16 }}>
+                <h3 style={{ fontSize: 15, margin: '0 0 4px' }}>
+                  Openstaande verzameldoelen — {team.name}
+                </h3>
+                {openTiles.map((tile) => {
+                  const reqIds = tile.requirements.map((r: any) => r.id)
+                  const teamSubmissions = bingoSubmissions.filter(
+                    (s) => reqIds.includes(s.requirement_id) && s.team_id === team.id
+                  )
+                  return (
+                    <div key={tile.id} style={{ marginBottom: 10 }}>
+                      <p className="text-muted" style={{ fontSize: 13, margin: '0 0 4px' }}>
+                        Vak {tile.position}: {tile.title}
+                      </p>
+                      <ItemSubmissionsPanel
+                        requirements={tile.requirements}
+                        submissions={teamSubmissions as any}
+                        teamId={team.id}
+                        canSubmit={myTeamIds.includes(team.id)}
+                        isOwner={membership?.role === 'owner'}
+                        apiBasePath="/api/bingo-item-submissions"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+
           {canManage && (
             <BingoTilesManager
               eventId={event.id}
               gridSize={(event.config as any)?.gridSize ?? 5}
-              initialTiles={(bingoTiles as any) ?? []}
+              initialTiles={(bingoTilesWithRequirements as any) ?? []}
             />
           )}
         </>

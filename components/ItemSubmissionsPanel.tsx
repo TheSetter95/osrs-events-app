@@ -39,12 +39,14 @@ export default function ItemSubmissionsPanel({
   teamId,
   canSubmit,
   isOwner,
+  apiBasePath = '/api/item-submissions',
 }: {
   requirements: Requirement[]
   submissions: Submission[]
   teamId: string | null
   canSubmit: boolean
   isOwner: boolean
+  apiBasePath?: string
 }) {
   const router = useRouter()
   const [formOpenFor, setFormOpenFor] = useState<string | null>(null)
@@ -60,7 +62,7 @@ export default function ItemSubmissionsPanel({
     setError(null)
     setLoading(true)
 
-    const res = await fetch('/api/item-submissions', {
+    const res = await fetch(apiBasePath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requirementId, teamId, quantity, screenshotUrl }),
@@ -81,7 +83,7 @@ export default function ItemSubmissionsPanel({
   }
 
   async function handleReview(submissionId: string, action: 'confirm' | 'reject') {
-    await fetch(`/api/item-submissions/${submissionId}/review`, {
+    await fetch(`${apiBasePath}/${submissionId}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, reason: action === 'reject' ? rejectReason : undefined }),

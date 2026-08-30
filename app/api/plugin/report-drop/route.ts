@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfileFromPluginToken } from '@/lib/pluginAuth'
 import { getSubmissionTotal } from '@/lib/submissionTotals'
+import { getBingoSubmissionTotal, syncBingoTileCompletion } from '@/lib/bingoSubmissionTotals'
 
 export async function POST(request: Request) {
   const profile = await getProfileFromPluginToken(request)
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       .eq('id', participation.event_id)
       .single()
 
-    if (!event || event.status !== 'active' || event.type !== 'ganzebord') continue
+    if (!event || event.status !== 'active') continue
 
     const { data: team } = await supabaseAdmin
       .from('teams')
@@ -53,72 +54,137 @@ export async function POST(request: Request) {
       .eq('id', participation.team_id)
       .single()
 
-    if (!team || team.board_position <= 0) continue
+    if (!team) continue
 
-    // Het vakje waar het team NU op staat
-    const { data: tile } = await supabaseAdmin
-      .from('board_tiles')
-      .select('id, tile_number, effect_type')
-      .eq('event_id', event.id)
-      .eq('tile_number', team.board_position)
-      .eq('effect_type', 'verzamel_item')
-      .maybeSingle()
+    // --- GANZEBORD: alleen het vakje waar het team NU op staat ---
+    if (event.type === 'ganzebord' && team.board_position > 0) {
+      const { data: tile } = await supabaseAdmin
+        .from('board_tiles')
+        .select('id, tile_number')
+        .eq('event_id', event.id)
+        .eq('tile_number', team.board_position)
+        .eq('effect_type', 'verzamel_item')
+        .maybeSingle()
 
-    if (!tile) continue
+      if (tile) {
+        const { data: requirements } = await supabaseAdmin
+          .from('board_tile_requirements')
+          .select('id, label, required_quantity')
+          .eq('tile_id', tile.id)
 
-    // Alle doelen op dit vakje, met hun acceptabele item-varianten
-    const { data: requirements } = await supabaseAdmin
-      .from('board_tile_requirements')
-      .select('id, label, required_quantity')
-      .eq('tile_id', tile.id)
+        const { data: acceptedItems } = await supabaseAdmin
+          .from('requirement_accepted_items')
+          .select('requirement_id, item_id, item_name')
+          .in('requirement_id', (requirements ?? []).map((r) => r.id))
 
-    if (!requirements || requirements.length === 0) continue
+        const matchedAcceptedItem = (acceptedItems ?? []).find((a) => a.item_id === Number(itemId))
+        const requirement = matchedAcceptedItem
+          ? (requirements ?? []).find((r) => r.id === matchedAcceptedItem.requirement_id)
+          : null
 
-    const { data: acceptedItems } = await supabaseAdmin
-      .from('requirement_accepted_items')
-      .select('requirement_id, item_id, item_name')
-      .in('requirement_id', requirements.map((r) => r.id))
+        if (requirement) {
+          const currentTotal = await getSubmissionTotal(requirement.id, team.id)
+          if (currentTotal < requirement.required_quantity) {
+            const amountToLog = Math.min(quantity, requirement.required_quantity - currentTotal)
 
-    const matchedAcceptedItem = (acceptedItems ?? []).find((a) => a.item_id === Number(itemId))
-    if (!matchedAcceptedItem) continue
+            await supabaseAdmin.from('item_submissions').insert({
+              requirement_id: requirement.id,
+              team_id: team.id,
+              quantity: amountToLog,
+              source: 'plugin',
+              status: 'confirmed',
+              submitted_by: profile.id,
+            })
 
-    const requirement = requirements.find((r) => r.id === matchedAcceptedItem.requirement_id)
-    if (!requirement) continue
+            const newTotal = currentTotal + amountToLog
 
-    const currentTotal = await getSubmissionTotal(requirement.id, team.id)
-    if (currentTotal >= requirement.required_quantity) continue // al compleet, niets te melden
+            let tileFullyComplete = true
+            for (const req of requirements ?? []) {
+              const total = req.id === requirement.id ? newTotal : await getSubmissionTotal(req.id, team.id)
+              if (total < req.required_quantity) {
+                tileFullyComplete = false
+                break
+              }
+            }
 
-    const amountToLog = Math.min(quantity, requirement.required_quantity - currentTotal)
-
-    await supabaseAdmin.from('item_submissions').insert({
-      requirement_id: requirement.id,
-      team_id: team.id,
-      quantity: amountToLog,
-      source: 'plugin',
-      status: 'confirmed', // plugin-data vertrouwen we automatisch
-      submitted_by: profile.id,
-    })
-
-    const newTotal = currentTotal + amountToLog
-
-    // Check of ALLE benodigde doelen voor dit vakje nu compleet zijn (EN-logica)
-    let tileFullyComplete = true
-    for (const req of requirements) {
-      const total = req.id === requirement.id ? newTotal : await getSubmissionTotal(req.id, team.id)
-      if (total < req.required_quantity) {
-        tileFullyComplete = false
-        break
+            matchedCount++
+            updates.push({
+              type: 'ganzebord',
+              team: team.name,
+              tile: tile.tile_number,
+              item: requirement.label ?? matchedAcceptedItem?.item_name ?? itemName,
+              progress: `${newTotal}/${requirement.required_quantity}`,
+              tileFullyComplete,
+            })
+          }
+        }
       }
     }
 
-    matchedCount++
-    updates.push({
-      team: team.name,
-      tile: tile.tile_number,
-      item: requirement.label ?? matchedAcceptedItem.item_name ?? itemName,
-      progress: `${newTotal}/${requirement.required_quantity}`,
-      tileFullyComplete,
-    })
+    // --- BINGO: alle nog-niet-voltooide verzameldoelen, geen positie-eis ---
+    if (event.type === 'bingo') {
+      const { data: bingoTiles } = await supabaseAdmin
+        .from('bingo_tiles')
+        .select('id, position')
+        .eq('event_id', event.id)
+        .eq('effect_type', 'verzamel_item')
+
+      for (const bingoTile of bingoTiles ?? []) {
+        // Al voltooid door dit team? Dan hoeft dit vakje niet meer gecheckt te worden
+        const { data: existingCompletion } = await supabaseAdmin
+          .from('bingo_completions')
+          .select('id')
+          .eq('tile_id', bingoTile.id)
+          .eq('team_id', team.id)
+          .maybeSingle()
+
+        if (existingCompletion) continue
+
+        const { data: requirements } = await supabaseAdmin
+          .from('bingo_tile_requirements')
+          .select('id, label, required_quantity')
+          .eq('tile_id', bingoTile.id)
+
+        const { data: acceptedItems } = await supabaseAdmin
+          .from('bingo_requirement_accepted_items')
+          .select('requirement_id, item_id, item_name')
+          .in('requirement_id', (requirements ?? []).map((r) => r.id))
+
+        const matchedAcceptedItem = (acceptedItems ?? []).find((a) => a.item_id === Number(itemId))
+        const requirement = matchedAcceptedItem
+          ? (requirements ?? []).find((r) => r.id === matchedAcceptedItem.requirement_id)
+          : null
+
+        if (!requirement) continue
+
+        const currentTotal = await getBingoSubmissionTotal(requirement.id, team.id)
+        if (currentTotal >= requirement.required_quantity) continue
+
+        const amountToLog = Math.min(quantity, requirement.required_quantity - currentTotal)
+
+        await supabaseAdmin.from('bingo_item_submissions').insert({
+          requirement_id: requirement.id,
+          team_id: team.id,
+          quantity: amountToLog,
+          source: 'plugin',
+          status: 'confirmed',
+          submitted_by: profile.id,
+        })
+
+        const newTotal = currentTotal + amountToLog
+        const tileFullyComplete = await syncBingoTileCompletion(bingoTile.id, team.id)
+
+        matchedCount++
+        updates.push({
+          type: 'bingo',
+          team: team.name,
+          tile: bingoTile.position,
+          item: requirement.label ?? matchedAcceptedItem?.item_name ?? itemName,
+          progress: `${newTotal}/${requirement.required_quantity}`,
+          tileFullyComplete,
+        })
+      }
+    }
   }
 
   return NextResponse.json({ matched: matchedCount, updates })
