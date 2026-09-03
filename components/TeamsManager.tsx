@@ -120,9 +120,8 @@ export default function TeamsManager({
   function renderParticipant(p: Participant, currentTeamId: string) {
     return (
       <li key={p.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span>
+        <span title={p.discord_id ? `Discord ID: ${p.discord_id}` : undefined}>
           {p.display_name}
-          {p.discord_id && <span className="text-muted"> ({p.discord_id})</span>}
         </span>
         {canManage && (
           <>
