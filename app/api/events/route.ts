@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-const ALLOWED_TYPES = ['bingo', 'ganzebord', 'pvp_toernooi']
+const ALLOWED_TYPES = ['bingo', 'ganzebord', 'droprace', 'gauntlet', 'pvp_toernooi']
 
 export async function POST(request: Request) {
   const supabase = await createClient()
