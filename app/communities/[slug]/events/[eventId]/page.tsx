@@ -14,10 +14,17 @@ import BingoConfigForm from '@/components/BingoConfigForm'
 import BingoTilesManager from '@/components/BingoTilesManager'
 import BingoBoard from '@/components/BingoBoard'
 import BingoLeaderboard from '@/components/BingoLeaderboard'
+import DropRaceBoard from '@/components/DropRaceBoard'
+import DropRaceManager from '@/components/DropRaceManager'
+import GauntletBoard from '@/components/GauntletBoard'
+import GauntletManager from '@/components/GauntletManager'
+import GauntletConfigForm from '@/components/GauntletConfigForm'
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   bingo: 'Bingo',
   ganzebord: 'Ganzebord',
+  droprace: 'Losse Races',
+  gauntlet: 'Gauntlet',
   pvp_toernooi: 'PvP-toernooi',
 }
 
@@ -218,15 +225,98 @@ export default async function EventPage({
     .single()
 
   let myTeamIds: string[] = []
+  let myParticipantIds: string[] = []
   if (myProfile?.discord_id) {
     const { data: myParticipations } = await supabase
       .from('participants')
-      .select('team_id')
+      .select('id, team_id')
       .eq('event_id', event.id)
       .eq('discord_id', myProfile.discord_id)
-      .not('team_id', 'is', null)
-    myTeamIds = (myParticipations ?? []).map((p) => p.team_id as string)
+    myTeamIds = (myParticipations ?? []).filter((p) => p.team_id).map((p) => p.team_id as string)
+    myParticipantIds = (myParticipations ?? []).map((p) => p.id)
   }
+
+  // --- Losse Races ---
+  const { data: races } = await supabase
+    .from('drop_races')
+    .select('*')
+    .eq('event_id', event.id)
+
+  const { data: raceAcceptedItems } = await supabase
+    .from('drop_race_accepted_items')
+    .select('*')
+    .in('race_id', (races ?? []).map((r) => r.id))
+
+  const racesWithItems = (races ?? []).map((r) => ({
+    ...r,
+    accepted_items: (raceAcceptedItems ?? []).filter((a) => a.race_id === r.id),
+  }))
+
+  const { data: rawRaceSubmissions } = await supabase
+    .from('drop_race_submissions')
+    .select('*')
+    .in('race_id', (races ?? []).length > 0 ? (races ?? []).map((r) => r.id) : ['00000000-0000-0000-0000-000000000000'])
+
+  const raceSubmitterIds = [...new Set((rawRaceSubmissions ?? []).map((s) => s.submitted_by).filter(Boolean))]
+  let raceSubmitterNames: Record<string, string> = {}
+  if (raceSubmitterIds.length > 0) {
+    const { data: submitters } = await supabase
+      .from('profiles')
+      .select('id, username, osrs_username')
+      .in('id', raceSubmitterIds as string[])
+    raceSubmitterNames = Object.fromEntries((submitters ?? []).map((p) => [p.id, p.osrs_username || p.username]))
+  }
+  const raceSubmissions = (rawRaceSubmissions ?? []).map((s) => ({
+    ...s,
+    submitterName: raceSubmitterNames[s.submitted_by] ?? 'Onbekend',
+  }))
+
+  const { data: allParticipants } = await supabase
+    .from('participants')
+    .select('id, display_name')
+    .eq('event_id', event.id)
+
+  // --- Gauntlet ---
+  const { data: gauntletStages } = await supabase
+    .from('gauntlet_stages')
+    .select('*')
+    .eq('event_id', event.id)
+
+  const { data: gauntletAcceptedItems } = await supabase
+    .from('gauntlet_stage_accepted_items')
+    .select('*')
+    .in('stage_id', (gauntletStages ?? []).map((s) => s.id))
+
+  const gauntletStagesWithItems = (gauntletStages ?? []).map((s) => ({
+    ...s,
+    accepted_items: (gauntletAcceptedItems ?? []).filter((a) => a.stage_id === s.id),
+  }))
+
+  const { data: rawGauntletSubmissions } = await supabase
+    .from('gauntlet_submissions')
+    .select('*')
+    .in(
+      'stage_id',
+      (gauntletStages ?? []).length > 0 ? (gauntletStages ?? []).map((s) => s.id) : ['00000000-0000-0000-0000-000000000000']
+    )
+
+  const gauntletSubmitterIds = [...new Set((rawGauntletSubmissions ?? []).map((s) => s.submitted_by).filter(Boolean))]
+  let gauntletSubmitterNames: Record<string, string> = {}
+  if (gauntletSubmitterIds.length > 0) {
+    const { data: submitters } = await supabase
+      .from('profiles')
+      .select('id, username, osrs_username')
+      .in('id', gauntletSubmitterIds as string[])
+    gauntletSubmitterNames = Object.fromEntries(
+      (submitters ?? []).map((p) => [p.id, p.osrs_username || p.username])
+    )
+  }
+  const gauntletSubmissions = (rawGauntletSubmissions ?? []).map((s) => ({
+    ...s,
+    submitterName: gauntletSubmitterNames[s.submitted_by] ?? 'Onbekend',
+  }))
+
+  const gauntletMode: 'team' | 'individual' = (event.config as any)?.mode === 'individual' ? 'individual' : 'team'
 
   // Grote-bord-weergave: alleen voor een actief Ganzebord-event
   const isBigBoardView = event.type === 'ganzebord' && event.status === 'active'
@@ -475,6 +565,42 @@ export default async function EventPage({
               gridSize={(event.config as any)?.gridSize ?? 5}
               initialTiles={(bingoTilesWithRequirements as any) ?? []}
             />
+          )}
+        </>
+      )}
+
+      {event.type === 'droprace' && (
+        <>
+          <DropRaceBoard
+            races={(racesWithItems as any) ?? []}
+            submissions={raceSubmissions as any}
+            teams={(teams as any) ?? []}
+            participants={(allParticipants as any) ?? []}
+            myTeamIds={myTeamIds}
+            myParticipantIds={myParticipantIds}
+            isOwner={membership?.role === 'owner'}
+          />
+          {canManage && (
+            <DropRaceManager eventId={event.id} initialRaces={(racesWithItems as any) ?? []} />
+          )}
+        </>
+      )}
+
+      {event.type === 'gauntlet' && (
+        <>
+          {canManage && <GauntletConfigForm eventId={event.id} currentMode={gauntletMode} />}
+          <GauntletBoard
+            stages={(gauntletStagesWithItems as any) ?? []}
+            submissions={gauntletSubmissions as any}
+            teams={(teams as any) ?? []}
+            participants={(allParticipants as any) ?? []}
+            mode={gauntletMode}
+            myTeamIds={myTeamIds}
+            myParticipantIds={myParticipantIds}
+            isOwner={membership?.role === 'owner'}
+          />
+          {canManage && (
+            <GauntletManager eventId={event.id} initialStages={(gauntletStagesWithItems as any) ?? []} />
           )}
         </>
       )}

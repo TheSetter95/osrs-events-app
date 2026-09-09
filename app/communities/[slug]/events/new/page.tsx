@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 const EVENT_TYPES = [
   { value: 'bingo', label: 'Bingo' },
   { value: 'ganzebord', label: 'Ganzebord' },
+  { value: 'droprace', label: 'Losse Races' },
+  { value: 'gauntlet', label: 'Gauntlet' },
   { value: 'pvp_toernooi', label: 'PvP-toernooi' },
 ]
 
