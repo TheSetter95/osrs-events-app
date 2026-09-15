@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { getSubmissionTotal } from '@/lib/submissionTotals'
 
 export async function POST(
   request: Request,
@@ -44,6 +45,36 @@ export async function POST(
       { error: 'Beoordelen mislukt. Ben je owner van deze community, en staat de melding nog open?' },
       { status: 403 }
     )
+  }
+
+  // Bij bevestigen: check of dit vakje nu volledig compleet is voor dit team,
+  // en zo ja, geef het team automatisch weer vrij om te gooien.
+  if (action === 'confirm') {
+    const { data: requirement } = await supabase
+      .from('board_tile_requirements')
+      .select('tile_id')
+      .eq('id', submission.requirement_id)
+      .single()
+
+    if (requirement) {
+      const { data: allRequirements } = await supabase
+        .from('board_tile_requirements')
+        .select('id, required_quantity')
+        .eq('tile_id', requirement.tile_id)
+
+      let allComplete = true
+      for (const req of allRequirements ?? []) {
+        const total = await getSubmissionTotal(req.id, submission.team_id)
+        if (total < req.required_quantity) {
+          allComplete = false
+          break
+        }
+      }
+
+      if (allComplete) {
+        await supabase.from('teams').update({ can_roll: true }).eq('id', submission.team_id)
+      }
+    }
   }
 
   return NextResponse.json({ submission })

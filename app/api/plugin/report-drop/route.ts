@@ -96,8 +96,24 @@ export async function POST(request: Request) {
               status: 'confirmed',
               submitted_by: profile.id,
             })
+
+            // Check of ALLE doelen van dit vakje nu compleet zijn -> team automatisch vrijgeven
+            let allComplete = true
+            for (const req of requirements ?? []) {
+              const total = req.id === requirement.id
+                ? currentTotal + amountToLog
+                : await getSubmissionTotal(req.id, team.id)
+              if (total < req.required_quantity) {
+                allComplete = false
+                break
+              }
+            }
+            if (allComplete) {
+              await supabaseAdmin.from('teams').update({ can_roll: true }).eq('id', team.id)
+            }
+
             matchedCount++
-            updates.push({ type: 'ganzebord', team: team.name, item: requirement.label })
+            updates.push({ type: 'ganzebord', team: team.name, item: requirement.label, tileFullyComplete: allComplete })
           }
         }
       }
