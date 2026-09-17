@@ -33,6 +33,24 @@ function timeAgo(dateStr: string) {
   return `${days} dag${days === 1 ? '' : 'en'} geleden`
 }
 
+const DUPLICATE_WINDOW_MINUTES = 30
+
+// Is er voor dezelfde inzending een plugin-melding rond hetzelfde tijdstip?
+// Puur een hint voor de owner, geen harde blokkade.
+function findPossibleDuplicate(target: Submission, allForRequirement: Submission[]) {
+  if (target.source !== 'screenshot') return null
+
+  const targetTime = new Date(target.created_at).getTime()
+
+  return allForRequirement.find((other) => {
+    if (other.id === target.id) return false
+    if (other.source !== 'plugin') return false
+    if (other.status === 'rejected') return false
+    const diffMinutes = Math.abs(new Date(other.created_at).getTime() - targetTime) / 60000
+    return diffMinutes <= DUPLICATE_WINDOW_MINUTES
+  })
+}
+
 export default function ItemSubmissionsPanel({
   requirements,
   submissions,
@@ -162,7 +180,10 @@ export default function ItemSubmissionsPanel({
 
             {reqSubmissions.length > 0 && (
               <ul style={{ listStyle: 'none', padding: 0, marginTop: 10, fontSize: 12 }}>
-                {reqSubmissions.map((s) => (
+                {reqSubmissions.map((s) => {
+                  const possibleDuplicate = findPossibleDuplicate(s, reqSubmissions)
+
+                  return (
                   <li
                     key={s.id}
                     style={{
@@ -188,6 +209,25 @@ export default function ItemSubmissionsPanel({
                         </a>
                       )}
                     </div>
+
+                    {possibleDuplicate && s.status === 'pending' && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--danger-light)',
+                          background: 'rgba(224, 49, 49, 0.12)',
+                          border: '1px solid var(--danger-light)',
+                          borderRadius: 4,
+                          padding: '3px 6px',
+                          display: 'inline-block',
+                          width: 'fit-content',
+                        }}
+                      >
+                        ⚠️ Let op: er staat een plugin-melding voor dit item rond hetzelfde tijdstip
+                        ({timeAgo(possibleDuplicate.created_at)}, door {possibleDuplicate.submitterName}) —
+                        mogelijk dezelfde drop dubbel gemeld.
+                      </span>
+                    )}
 
                     {s.status === 'rejected' && s.rejection_reason && (
                       <span className="text-muted" style={{ fontSize: 11 }}>
@@ -230,7 +270,8 @@ export default function ItemSubmissionsPanel({
                       </div>
                     )}
                   </li>
-                ))}
+                  )
+                })}
               </ul>
             )}
           </div>
