@@ -468,6 +468,28 @@ export default async function EventPage({
               </div>
 
               {canManage && (
+                <details style={{ marginTop: 24 }}>
+                  <summary
+                    style={{
+                      cursor: 'pointer',
+                      color: 'var(--gold-light)',
+                      fontSize: 13,
+                      userSelect: 'none',
+                    }}
+                  >
+                    👁️ Opdrachten bekijken (alleen zichtbaar voor jou)
+                  </summary>
+                  <div style={{ marginTop: 12 }}>
+                    <GanzebordTilesManager
+                      eventId={event.id}
+                      boardSize={(event.config as any)?.boardSize ?? 63}
+                      initialTiles={(tilesWithRequirements as any) ?? []}
+                    />
+                  </div>
+                </details>
+              )}
+
+              {canManage && (
                 <div
                   style={{
                     marginTop: 40,
