@@ -60,261 +60,213 @@ export default async function EventPage({
     notFound()
   }
 
-  const { data: membership } = await supabase
-    .from('community_members')
-    .select('role')
-    .eq('community_id', event.community_id)
-    .eq('profile_id', user.id)
-    .single()
+  // Alleen de data ophalen die dit eventtype nodig heeft, en onafhankelijke
+  // queries tegelijk uitvoeren (veel minder wachttijd en serverwerk per paginaweergave).
+  const NONE = '00000000-0000-0000-0000-000000000000'
+  const isGanzebord = event.type === 'ganzebord'
+  const isBingo = event.type === 'bingo'
+  const isRace = event.type === 'droprace'
+  const isGauntlet = event.type === 'gauntlet'
+
+  async function profileNames(ids: (string | null | undefined)[]) {
+    const unique = [...new Set(ids.filter(Boolean))] as string[]
+    if (unique.length === 0) return {} as Record<string, string>
+    const { data } = await supabase.from('profiles').select('id, username, osrs_username').in('id', unique)
+    return Object.fromEntries(
+      (data ?? []).map((p: any) => [p.id, (p.osrs_username || p.username) as string])
+    ) as Record<string, string>
+  }
+
+  const [{ data: membership }, { data: teams, error: teamsError }, { data: eventParticipants }, { data: myProfile }] =
+    await Promise.all([
+      supabase
+        .from('community_members')
+        .select('role')
+        .eq('community_id', event.community_id)
+        .eq('profile_id', user.id)
+        .single(),
+      supabase
+        .from('teams')
+        .select('id, name, board_position, can_roll, pending_penalty, participants(id, display_name, discord_id)')
+        .eq('event_id', event.id)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('participants')
+        .select('id, display_name, discord_id, team_id')
+        .eq('event_id', event.id),
+      supabase.from('profiles').select('discord_id').eq('id', user.id).single(),
+    ])
 
   const canManage = membership?.role === 'owner' || membership?.role === 'organizer'
-
-  const { data: teams, error: teamsError } = await supabase
-    .from('teams')
-    .select(
-      'id, name, board_position, can_roll, pending_penalty, participants(id, display_name, discord_id)'
-    )
-    .eq('event_id', event.id)
-    .order('created_at', { ascending: true })
 
   if (teamsError) {
     console.error('Fout bij ophalen teams:', teamsError)
   }
 
-  const { data: unassigned } = await supabase
-    .from('participants')
-    .select('id, display_name, discord_id')
-    .eq('event_id', event.id)
-    .is('team_id', null)
+  const unassigned = (eventParticipants ?? [])
+    .filter((p: any) => !p.team_id)
+    .map((p: any) => ({ id: p.id, display_name: p.display_name, discord_id: p.discord_id }))
 
-  const { data: tiles } = await supabase
-    .from('board_tiles')
-    .select('*')
-    .eq('event_id', event.id)
-
-  const { data: tileRequirements } = await supabase
-    .from('board_tile_requirements')
-    .select('*')
-    .in('tile_id', (tiles ?? []).map((t) => t.id))
-
-  const { data: acceptedItems } = await supabase
-    .from('requirement_accepted_items')
-    .select('*')
-    .in('requirement_id', (tileRequirements ?? []).map((r) => r.id))
-
-  const requirementsWithItems = (tileRequirements ?? []).map((r) => ({
-    ...r,
-    accepted_items: (acceptedItems ?? []).filter((a) => a.requirement_id === r.id),
-  }))
-
-  const tilesWithRequirements = (tiles ?? []).map((tile) => ({
-    ...tile,
-    requirements: requirementsWithItems.filter((r) => r.tile_id === tile.id),
-  }))
-
-  const requirementIds = (tileRequirements ?? []).map((r) => r.id)
-
-  const { data: rawSubmissions } = await supabase
-    .from('item_submissions')
-    .select('*')
-    .in('requirement_id', requirementIds.length > 0 ? requirementIds : ['00000000-0000-0000-0000-000000000000'])
-    .order('created_at', { ascending: false })
-
-  const submitterIds = [...new Set((rawSubmissions ?? []).map((s) => s.submitted_by).filter(Boolean))]
-  let submitterNames: Record<string, string> = {}
-  if (submitterIds.length > 0) {
-    const { data: submitters } = await supabase
-      .from('profiles')
-      .select('id, username, osrs_username')
-      .in('id', submitterIds as string[])
-    submitterNames = Object.fromEntries(
-      (submitters ?? []).map((p) => [p.id, p.osrs_username || p.username])
-    )
-  }
-
-  const submissions = (rawSubmissions ?? []).map((s) => ({
-    ...s,
-    submitterName: submitterNames[s.submitted_by] ?? 'Onbekend',
-  }))
-
-  const { data: reveals } = await supabase
-    .from('board_tile_reveals')
-    .select('tile_number')
-    .eq('event_id', event.id)
-
-  const { data: bingoTiles } = await supabase
-    .from('bingo_tiles')
-    .select('*')
-    .eq('event_id', event.id)
-
-  const { data: bingoTileRequirements } = await supabase
-    .from('bingo_tile_requirements')
-    .select('*')
-    .in('tile_id', (bingoTiles ?? []).map((t) => t.id))
-
-  const { data: bingoAcceptedItems } = await supabase
-    .from('bingo_requirement_accepted_items')
-    .select('*')
-    .in('requirement_id', (bingoTileRequirements ?? []).map((r) => r.id))
-
-  const bingoRequirementsWithItems = (bingoTileRequirements ?? []).map((r) => ({
-    ...r,
-    accepted_items: (bingoAcceptedItems ?? []).filter((a) => a.requirement_id === r.id),
-  }))
-
-  const bingoTilesWithRequirements = (bingoTiles ?? []).map((tile) => ({
-    ...tile,
-    requirements: bingoRequirementsWithItems.filter((r) => r.tile_id === tile.id),
-  }))
-
-  const bingoRequirementIds = (bingoTileRequirements ?? []).map((r) => r.id)
-
-  const { data: rawBingoSubmissions } = await supabase
-    .from('bingo_item_submissions')
-    .select('*')
-    .in(
-      'requirement_id',
-      bingoRequirementIds.length > 0 ? bingoRequirementIds : ['00000000-0000-0000-0000-000000000000']
-    )
-    .order('created_at', { ascending: false })
-
-  const bingoSubmitterIds = [...new Set((rawBingoSubmissions ?? []).map((s) => s.submitted_by).filter(Boolean))]
-  let bingoSubmitterNames: Record<string, string> = {}
-  if (bingoSubmitterIds.length > 0) {
-    const { data: submitters } = await supabase
-      .from('profiles')
-      .select('id, username, osrs_username')
-      .in('id', bingoSubmitterIds as string[])
-    bingoSubmitterNames = Object.fromEntries(
-      (submitters ?? []).map((p) => [p.id, p.osrs_username || p.username])
-    )
-  }
-
-  const bingoSubmissions = (rawBingoSubmissions ?? []).map((s) => ({
-    ...s,
-    submitterName: bingoSubmitterNames[s.submitted_by] ?? 'Onbekend',
-  }))
-
-  const { data: bingoCompletions } = await supabase
-    .from('bingo_completions')
-    .select('tile_id, team_id')
-    .in('tile_id', (bingoTiles ?? []).map((t) => t.id))
-
-  const { data: history } = await supabase
-    .from('progress_updates')
-    .select('id, data, source, created_at, created_by')
-    .eq('event_id', event.id)
-    .order('created_at', { ascending: false })
-
-  const creatorIds = [...new Set((history ?? []).map((h) => h.created_by).filter(Boolean))]
-  let creatorNames: Record<string, string> = {}
-  if (creatorIds.length > 0) {
-    const { data: creators } = await supabase
-      .from('profiles')
-      .select('id, username, osrs_username')
-      .in('id', creatorIds as string[])
-    creatorNames = Object.fromEntries(
-      (creators ?? []).map((c) => [c.id, c.osrs_username || c.username])
-    )
-  }
-
-  const { data: myProfile } = await supabase
-    .from('profiles')
-    .select('discord_id')
-    .eq('id', user.id)
-    .single()
+  const allParticipants = (eventParticipants ?? []).map((p: any) => ({ id: p.id, display_name: p.display_name }))
 
   let myTeamIds: string[] = []
   let myParticipantIds: string[] = []
   if (myProfile?.discord_id) {
-    const { data: myParticipations } = await supabase
-      .from('participants')
-      .select('id, team_id')
-      .eq('event_id', event.id)
-      .eq('discord_id', myProfile.discord_id)
-    myTeamIds = (myParticipations ?? []).filter((p) => p.team_id).map((p) => p.team_id as string)
-    myParticipantIds = (myParticipations ?? []).map((p) => p.id)
+    const mine = (eventParticipants ?? []).filter((p: any) => p.discord_id === myProfile.discord_id)
+    myTeamIds = mine.filter((p: any) => p.team_id).map((p: any) => p.team_id as string)
+    myParticipantIds = mine.map((p: any) => p.id as string)
+  }
+
+  // --- Ganzebord ---
+  let tiles: any[] = []
+  let tilesWithRequirements: any[] = []
+  let submissions: any[] = []
+  let reveals: any[] = []
+  let history: any[] = []
+  let creatorNames: Record<string, string> = {}
+
+  if (isGanzebord) {
+    const [{ data: tileRows }, { data: revealRows }, { data: historyRows }] = await Promise.all([
+      supabase.from('board_tiles').select('*').eq('event_id', event.id),
+      supabase.from('board_tile_reveals').select('tile_number').eq('event_id', event.id),
+      supabase
+        .from('progress_updates')
+        .select('id, data, source, created_at, created_by')
+        .eq('event_id', event.id)
+        .order('created_at', { ascending: false })
+        .limit(300),
+    ])
+    tiles = tileRows ?? []
+    reveals = revealRows ?? []
+    history = historyRows ?? []
+
+    const { data: tileRequirements } = await supabase
+      .from('board_tile_requirements')
+      .select('*')
+      .in('tile_id', tiles.length > 0 ? tiles.map((t) => t.id) : [NONE])
+
+    const requirementIds = (tileRequirements ?? []).map((r: any) => r.id)
+    const reqIdsOrNone = requirementIds.length > 0 ? requirementIds : [NONE]
+
+    const [{ data: acceptedItems }, { data: rawSubmissions }, names] = await Promise.all([
+      supabase.from('requirement_accepted_items').select('*').in('requirement_id', reqIdsOrNone),
+      supabase
+        .from('item_submissions')
+        .select('*')
+        .in('requirement_id', reqIdsOrNone)
+        .order('created_at', { ascending: false }),
+      profileNames(history.map((h) => h.created_by)),
+    ])
+    creatorNames = names
+
+    const requirementsWithItems = (tileRequirements ?? []).map((r: any) => ({
+      ...r,
+      accepted_items: (acceptedItems ?? []).filter((a: any) => a.requirement_id === r.id),
+    }))
+    tilesWithRequirements = tiles.map((tile) => ({
+      ...tile,
+      requirements: requirementsWithItems.filter((r: any) => r.tile_id === tile.id),
+    }))
+
+    const submitterNames = await profileNames((rawSubmissions ?? []).map((s: any) => s.submitted_by))
+    submissions = (rawSubmissions ?? []).map((s: any) => ({
+      ...s,
+      submitterName: submitterNames[s.submitted_by] ?? 'Onbekend',
+    }))
+  }
+
+  // --- Bingo ---
+  let bingoTilesWithRequirements: any[] = []
+  let bingoSubmissions: any[] = []
+  let bingoCompletions: any[] = []
+
+  if (isBingo) {
+    const { data: bingoTiles } = await supabase.from('bingo_tiles').select('*').eq('event_id', event.id)
+    const bingoTileIds = (bingoTiles ?? []).length > 0 ? (bingoTiles ?? []).map((t: any) => t.id) : [NONE]
+
+    const [{ data: bingoTileRequirements }, { data: completions }] = await Promise.all([
+      supabase.from('bingo_tile_requirements').select('*').in('tile_id', bingoTileIds),
+      supabase.from('bingo_completions').select('tile_id, team_id').in('tile_id', bingoTileIds),
+    ])
+    bingoCompletions = completions ?? []
+
+    const bingoReqIds = (bingoTileRequirements ?? []).map((r: any) => r.id)
+    const bingoReqIdsOrNone = bingoReqIds.length > 0 ? bingoReqIds : [NONE]
+
+    const [{ data: bingoAcceptedItems }, { data: rawBingoSubmissions }] = await Promise.all([
+      supabase.from('bingo_requirement_accepted_items').select('*').in('requirement_id', bingoReqIdsOrNone),
+      supabase
+        .from('bingo_item_submissions')
+        .select('*')
+        .in('requirement_id', bingoReqIdsOrNone)
+        .order('created_at', { ascending: false }),
+    ])
+
+    const bingoRequirementsWithItems = (bingoTileRequirements ?? []).map((r: any) => ({
+      ...r,
+      accepted_items: (bingoAcceptedItems ?? []).filter((a: any) => a.requirement_id === r.id),
+    }))
+    bingoTilesWithRequirements = (bingoTiles ?? []).map((tile: any) => ({
+      ...tile,
+      requirements: bingoRequirementsWithItems.filter((r: any) => r.tile_id === tile.id),
+    }))
+
+    const names = await profileNames((rawBingoSubmissions ?? []).map((s: any) => s.submitted_by))
+    bingoSubmissions = (rawBingoSubmissions ?? []).map((s: any) => ({
+      ...s,
+      submitterName: names[s.submitted_by] ?? 'Onbekend',
+    }))
   }
 
   // --- Losse Races ---
-  const { data: races } = await supabase
-    .from('drop_races')
-    .select('*')
-    .eq('event_id', event.id)
+  let racesWithItems: any[] = []
+  let raceSubmissions: any[] = []
 
-  const { data: raceAcceptedItems } = await supabase
-    .from('drop_race_accepted_items')
-    .select('*')
-    .in('race_id', (races ?? []).map((r) => r.id))
+  if (isRace) {
+    const { data: races } = await supabase.from('drop_races').select('*').eq('event_id', event.id)
+    const raceIds = (races ?? []).length > 0 ? (races ?? []).map((r: any) => r.id) : [NONE]
 
-  const racesWithItems = (races ?? []).map((r) => ({
-    ...r,
-    accepted_items: (raceAcceptedItems ?? []).filter((a) => a.race_id === r.id),
-  }))
+    const [{ data: raceAcceptedItems }, { data: rawRaceSubmissions }] = await Promise.all([
+      supabase.from('drop_race_accepted_items').select('*').in('race_id', raceIds),
+      supabase.from('drop_race_submissions').select('*').in('race_id', raceIds),
+    ])
 
-  const { data: rawRaceSubmissions } = await supabase
-    .from('drop_race_submissions')
-    .select('*')
-    .in('race_id', (races ?? []).length > 0 ? (races ?? []).map((r) => r.id) : ['00000000-0000-0000-0000-000000000000'])
+    racesWithItems = (races ?? []).map((r: any) => ({
+      ...r,
+      accepted_items: (raceAcceptedItems ?? []).filter((a: any) => a.race_id === r.id),
+    }))
 
-  const raceSubmitterIds = [...new Set((rawRaceSubmissions ?? []).map((s) => s.submitted_by).filter(Boolean))]
-  let raceSubmitterNames: Record<string, string> = {}
-  if (raceSubmitterIds.length > 0) {
-    const { data: submitters } = await supabase
-      .from('profiles')
-      .select('id, username, osrs_username')
-      .in('id', raceSubmitterIds as string[])
-    raceSubmitterNames = Object.fromEntries((submitters ?? []).map((p) => [p.id, p.osrs_username || p.username]))
+    const names = await profileNames((rawRaceSubmissions ?? []).map((s: any) => s.submitted_by))
+    raceSubmissions = (rawRaceSubmissions ?? []).map((s: any) => ({
+      ...s,
+      submitterName: names[s.submitted_by] ?? 'Onbekend',
+    }))
   }
-  const raceSubmissions = (rawRaceSubmissions ?? []).map((s) => ({
-    ...s,
-    submitterName: raceSubmitterNames[s.submitted_by] ?? 'Onbekend',
-  }))
-
-  const { data: allParticipants } = await supabase
-    .from('participants')
-    .select('id, display_name')
-    .eq('event_id', event.id)
 
   // --- Gauntlet ---
-  const { data: gauntletStages } = await supabase
-    .from('gauntlet_stages')
-    .select('*')
-    .eq('event_id', event.id)
+  let gauntletStagesWithItems: any[] = []
+  let gauntletSubmissions: any[] = []
 
-  const { data: gauntletAcceptedItems } = await supabase
-    .from('gauntlet_stage_accepted_items')
-    .select('*')
-    .in('stage_id', (gauntletStages ?? []).map((s) => s.id))
+  if (isGauntlet) {
+    const { data: gauntletStages } = await supabase.from('gauntlet_stages').select('*').eq('event_id', event.id)
+    const stageIds = (gauntletStages ?? []).length > 0 ? (gauntletStages ?? []).map((s: any) => s.id) : [NONE]
 
-  const gauntletStagesWithItems = (gauntletStages ?? []).map((s) => ({
-    ...s,
-    accepted_items: (gauntletAcceptedItems ?? []).filter((a) => a.stage_id === s.id),
-  }))
+    const [{ data: gauntletAcceptedItems }, { data: rawGauntletSubmissions }] = await Promise.all([
+      supabase.from('gauntlet_stage_accepted_items').select('*').in('stage_id', stageIds),
+      supabase.from('gauntlet_submissions').select('*').in('stage_id', stageIds),
+    ])
 
-  const { data: rawGauntletSubmissions } = await supabase
-    .from('gauntlet_submissions')
-    .select('*')
-    .in(
-      'stage_id',
-      (gauntletStages ?? []).length > 0 ? (gauntletStages ?? []).map((s) => s.id) : ['00000000-0000-0000-0000-000000000000']
-    )
+    gauntletStagesWithItems = (gauntletStages ?? []).map((s: any) => ({
+      ...s,
+      accepted_items: (gauntletAcceptedItems ?? []).filter((a: any) => a.stage_id === s.id),
+    }))
 
-  const gauntletSubmitterIds = [...new Set((rawGauntletSubmissions ?? []).map((s) => s.submitted_by).filter(Boolean))]
-  let gauntletSubmitterNames: Record<string, string> = {}
-  if (gauntletSubmitterIds.length > 0) {
-    const { data: submitters } = await supabase
-      .from('profiles')
-      .select('id, username, osrs_username')
-      .in('id', gauntletSubmitterIds as string[])
-    gauntletSubmitterNames = Object.fromEntries(
-      (submitters ?? []).map((p) => [p.id, p.osrs_username || p.username])
-    )
+    const names = await profileNames((rawGauntletSubmissions ?? []).map((s: any) => s.submitted_by))
+    gauntletSubmissions = (rawGauntletSubmissions ?? []).map((s: any) => ({
+      ...s,
+      submitterName: names[s.submitted_by] ?? 'Onbekend',
+    }))
   }
-  const gauntletSubmissions = (rawGauntletSubmissions ?? []).map((s) => ({
-    ...s,
-    submitterName: gauntletSubmitterNames[s.submitted_by] ?? 'Onbekend',
-  }))
 
   const gauntletMode: 'team' | 'individual' = (event.config as any)?.mode === 'individual' ? 'individual' : 'team'
 

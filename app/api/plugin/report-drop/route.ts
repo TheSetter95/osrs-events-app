@@ -38,24 +38,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ matched: 0, message: 'Geen team gevonden voor dit account.' })
   }
 
+  // Bundel de lookups: één query voor alle ACTIEVE events en één voor alle teams,
+  // in plaats van twee queries per deelname (ook voor afgelopen events).
+  const eventIds = [...new Set(participations.map((p) => p.event_id))]
+  const teamIds = [...new Set(participations.map((p) => p.team_id as string))]
+
+  const [{ data: activeEvents }, { data: teamRows }] = await Promise.all([
+    supabaseAdmin
+      .from('events')
+      .select('id, status, type, config')
+      .in('id', eventIds)
+      .eq('status', 'active'),
+    supabaseAdmin.from('teams').select('id, name, board_position').in('id', teamIds),
+  ])
+
+  if (!activeEvents || activeEvents.length === 0) {
+    return NextResponse.json({ matched: 0, message: 'Geen actief event voor dit account.' })
+  }
+
+  const eventById = new Map(activeEvents.map((e) => [e.id, e]))
+  const teamById = new Map((teamRows ?? []).map((t) => [t.id, t]))
+
   let matchedCount = 0
   const updates: any[] = []
 
   for (const participation of participations) {
-    const { data: event } = await supabaseAdmin
-      .from('events')
-      .select('id, status, type, config')
-      .eq('id', participation.event_id)
-      .single()
+    const event = eventById.get(participation.event_id)
+    if (!event) continue
 
-    if (!event || event.status !== 'active') continue
-
-    const { data: team } = await supabaseAdmin
-      .from('teams')
-      .select('id, name, board_position')
-      .eq('id', participation.team_id)
-      .single()
-
+    const team = teamById.get(participation.team_id as string)
     if (!team) continue
 
     // --- GANZEBORD ---
