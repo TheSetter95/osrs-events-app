@@ -18,9 +18,9 @@
   --text-muted-light: #7a6a4a;
   --radius: 6px;
   --shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  --font-display: 'Cinzel', serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: var(--font-cinzel), 'Cinzel', serif;
+  --font-body: var(--font-inter), 'Inter', sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
 }
 
 * {

@@ -44,6 +44,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Ongeldige waarde.' }, { status: 400 })
   }
 
+  const { data: before } = await supabase
+    .from('teams')
+    .select('id, event_id, can_roll')
+    .eq('id', params.teamId)
+    .single()
+
   const { data: team, error } = await supabase
     .from('teams')
     .update({ can_roll })
@@ -56,6 +62,17 @@ export async function PATCH(
       { error: 'Wijzigen mislukt. Alleen owners/organizers mogen dit.' },
       { status: 403 }
     )
+  }
+
+  // Elke wijziging van de vrijgave komt zichtbaar in de geschiedenis.
+  if (before && before.can_roll !== can_roll) {
+    await supabase.from('progress_updates').insert({
+      event_id: before.event_id,
+      participant_id: null,
+      data: { team_id: before.id, method: 'vrijgave_gewijzigd', can_roll },
+      source: 'web',
+      created_by: user.id,
+    })
   }
 
   return NextResponse.json({ team })

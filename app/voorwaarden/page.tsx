@@ -11,22 +11,22 @@ export default function TermsPage() {
         &larr; Terug naar home
       </Link>
       <h1>Servicevoorwaarden</h1>
-      <p className="text-muted" style={{ fontSize: 13 }}>Laatst bijgewerkt: juli 2026</p>
+      <p className="text-muted" style={{ fontSize: 13 }}>Laatst bijgewerkt: november 2026</p>
 
       <div className="panel-dark" style={{ lineHeight: 1.7 }}>
         <p>
           Deze servicevoorwaarden ("Voorwaarden") zijn van toepassing op het gebruik van
-          Massief Goud Events (de "Dienst"), een website met bijbehorende Discord-bot
-          waarmee community-eigenaren evenementen zoals Bingo, Ganzebord en
-          PvP-toernooien kunnen organiseren voor Old School RuneScape-community's. Door
+          Massief Goud Events (de "Dienst"), een website met een optionele RuneLite-plugin
+          waarmee community-eigenaren evenementen zoals Bingo, Ganzebord, Losse Races
+          en Gauntlet kunnen organiseren voor Old School RuneScape-community's. Door
           de Dienst te gebruiken, ga je akkoord met deze Voorwaarden.
         </p>
 
         <h2 style={{ fontSize: 18 }}>1. Wat is de Dienst</h2>
         <p>
           De Dienst biedt tools om communities, events, teams en deelnemers te beheren,
-          en een Discord-bot waarmee deelnemers zich kunnen aanmelden en voortgang
-          kunnen bijhouden. De Dienst is een fanproject en heeft geen enkele officiële
+          en een optionele RuneLite-plugin waarmee deelnemers in-game item-drops
+          automatisch kunnen laten melden aan hun team. De Dienst is een fanproject en heeft geen enkele officiële
           band met, goedkeuring van, of banden met Jagex Ltd. of Old School RuneScape.
           Alle merknamen en spelinhoud zijn eigendom van hun respectievelijke eigenaren.
         </p>

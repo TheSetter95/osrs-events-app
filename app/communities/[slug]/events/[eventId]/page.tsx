@@ -341,7 +341,7 @@ export default async function EventPage({
       {!isBigBoardView && canManage && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <EventStatusControl eventId={event.id} currentStatus={event.status} />
-          {event.status === 'draft' && (
+          {event.status === 'draft' && membership?.role === 'owner' && (
             <DeleteEventButton eventId={event.id} communitySlug={slug} />
           )}
         </div>

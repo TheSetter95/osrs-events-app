@@ -27,11 +27,28 @@ export async function POST(
 
   const { data: event } = await supabase
     .from('events')
-    .select('config')
+    .select('config, status, community_id')
     .eq('id', team.event_id)
     .single()
 
-  const boardSize = (event?.config as any)?.boardSize ?? 63
+  if (!event) {
+    return NextResponse.json({ error: 'Event niet gevonden.' }, { status: 404 })
+  }
+
+  // Alleen gooien in een actief event.
+  if (event.status !== 'active') {
+    return NextResponse.json({ error: 'Dit event is niet actief.' }, { status: 409 })
+  }
+
+  const { data: membership } = await supabase
+    .from('community_members')
+    .select('role')
+    .eq('community_id', event.community_id)
+    .eq('profile_id', user.id)
+    .single()
+  const isOrganizer = membership?.role === 'owner' || membership?.role === 'organizer'
+
+  const boardSize = (event.config as any)?.boardSize ?? 63
 
   const roll = Math.floor(Math.random() * 6) + 1
   const isPenaltyRoll = team.pending_penalty
@@ -47,12 +64,13 @@ export async function POST(
 
   // RLS bepaalt of dit mag: organizer/owner altijd, of een teamlid van een
   // team met can_roll = true (zie Stap 7-SQL). Geen match -> 0 rijen bijgewerkt.
-  const { data: updatedTeam, error: updateError } = await supabase
-    .from('teams')
-    .update(updates)
-    .eq('id', team.id)
-    .select()
-    .single()
+  // Voor gewone teamleden is de update voorwaardelijk op can_roll = true. Zo kunnen
+  // twee gelijktijdige verzoeken (dubbelklik) nooit allebei een worp opleveren.
+  let updateQuery = supabase.from('teams').update(updates).eq('id', team.id)
+  if (!isOrganizer) {
+    updateQuery = updateQuery.eq('can_roll', true)
+  }
+  const { data: updatedTeam, error: updateError } = await updateQuery.select().single()
 
   if (updateError || !updatedTeam) {
     return NextResponse.json(

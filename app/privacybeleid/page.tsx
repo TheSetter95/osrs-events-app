@@ -11,7 +11,7 @@ export default function PrivacyPage() {
         &larr; Terug naar home
       </Link>
       <h1>Privacybeleid</h1>
-      <p className="text-muted" style={{ fontSize: 13 }}>Laatst bijgewerkt: augustus 2026</p>
+      <p className="text-muted" style={{ fontSize: 13 }}>Laatst bijgewerkt: november 2026</p>
 
       <div className="panel-dark" style={{ lineHeight: 1.7 }}>
         <p>
@@ -33,9 +33,9 @@ export default function PrivacyPage() {
           <li>een community-logo, als je er een uploadt</li>
           <li>screenshots (als link) die je instuurt ter onderbouwing van een verzameldoel</li>
         </ul>
-        <p><strong>Automatisch, door gebruik van de Discord-bot:</strong></p>
+        <p><strong>Door een organizer ingevoerd:</strong></p>
         <ul>
-          <li>je Discord-ID, wanneer je je aanmeldt voor een event via de bot</li>
+          <li>je weergavenaam en Discord-ID, wanneer een organizer je als deelnemer aan een event toevoegt</li>
         </ul>
         <p><strong>Automatisch, door gebruik van de RuneLite-plugin (optioneel):</strong></p>
         <ul>
@@ -63,10 +63,9 @@ export default function PrivacyPage() {
           we gebruik van de volgende verwerkers (subverwerkers):
         </p>
         <ul>
-          <li><strong>Discord</strong> — voor inloggen (OAuth) en de bot-functionaliteit</li>
+          <li><strong>Discord</strong> — voor inloggen (OAuth)</li>
           <li><strong>Supabase</strong> — voor de database, authenticatie en opslag van geüploade afbeeldingen</li>
           <li><strong>Vercel</strong> — voor het hosten van de website, en het verwerken van verzoeken vanuit zowel de website als de RuneLite-plugin</li>
-          <li><strong>Fly.io</strong> — voor het hosten van de Discord-bot</li>
         </ul>
         <p>
           Binnen een community zijn je Discord-naam, OSRS-naam en event-deelname

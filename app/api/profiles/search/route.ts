@@ -21,8 +21,8 @@ export async function GET(request: Request) {
 
   const { data: profiles, error } = await supabase
     .from('profiles')
-    .select('id, username, avatar_url, discord_id, osrs_username')
-    .ilike('username', `%${q}%`)
+    .select('id, username, avatar_url, osrs_username')
+    .ilike('username', `%${q.replace(/[%_\\]/g, '')}%`)
     .limit(10)
 
   if (error) {

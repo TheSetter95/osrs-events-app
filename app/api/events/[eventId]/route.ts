@@ -86,11 +86,44 @@ export async function DELETE(
     return NextResponse.json({ error: 'Je moet ingelogd zijn.' }, { status: 401 })
   }
 
+  // Server-side afdwingen (niet alleen de knop verbergen): alleen een OWNER van
+  // de community mag een event verwijderen, en alleen als het nog een concept is.
+  const { data: existing } = await supabase
+    .from('events')
+    .select('id, status, community_id')
+    .eq('id', params.eventId)
+    .single()
+
+  if (!existing) {
+    return NextResponse.json({ error: 'Event niet gevonden.' }, { status: 404 })
+  }
+
+  const { data: membership } = await supabase
+    .from('community_members')
+    .select('role')
+    .eq('community_id', existing.community_id)
+    .eq('profile_id', user.id)
+    .single()
+
+  if (membership?.role !== 'owner') {
+    return NextResponse.json(
+      { error: 'Alleen de owner van de community mag een event verwijderen.' },
+      { status: 403 }
+    )
+  }
+
+  if (existing.status !== 'draft') {
+    return NextResponse.json(
+      { error: 'Alleen een event met status Concept kan verwijderd worden. Zet het event eerst terug naar Concept.' },
+      { status: 409 }
+    )
+  }
+
   const { error } = await supabase.from('events').delete().eq('id', params.eventId)
 
   if (error) {
     return NextResponse.json(
-      { error: 'Verwijderen mislukt. Ben je organizer/owner van deze community?' },
+      { error: 'Verwijderen mislukt. Alleen owners mogen concept-events verwijderen.' },
       { status: 403 }
     )
   }

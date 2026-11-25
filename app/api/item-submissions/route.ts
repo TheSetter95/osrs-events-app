@@ -1,3 +1,4 @@
+import { MAX_QUANTITY } from '@/lib/limits'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
 
   const { requirementId, teamId, quantity, screenshotUrl } = await request.json()
 
-  if (!requirementId || !teamId || !quantity || quantity < 1) {
+  if (!requirementId || !teamId || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
     return NextResponse.json({ error: 'Ongeldige invoer.' }, { status: 400 })
   }
 

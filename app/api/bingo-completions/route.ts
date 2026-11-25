@@ -18,6 +18,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Ongeldige invoer.' }, { status: 400 })
   }
 
+  // Voor het logboek: bij welk event hoort dit vakje?
+  const { data: tileRow } = await supabase
+    .from('bingo_tiles')
+    .select('event_id')
+    .eq('id', tileId)
+    .single()
+
+  async function logChange(method: string) {
+    if (!tileRow?.event_id) return
+    await supabase.from('progress_updates').insert({
+      event_id: tileRow.event_id,
+      participant_id: null,
+      data: { team_id: teamId, tile_id: tileId, method },
+      source: 'web',
+      created_by: user!.id,
+    })
+  }
+
   const { data: existing } = await supabase
     .from('bingo_completions')
     .select('id')
@@ -33,6 +51,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Bijwerken mislukt.' }, { status: 403 })
     }
 
+    await logChange('bingo_vak_teruggezet')
     return NextResponse.json({ completed: false })
   }
 
@@ -50,5 +69,6 @@ export async function POST(request: Request) {
     )
   }
 
+  await logChange('bingo_vak_afgevinkt')
   return NextResponse.json({ completed: true })
 }

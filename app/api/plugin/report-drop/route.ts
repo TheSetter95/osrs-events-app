@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { MAX_QUANTITY } from '@/lib/limits'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfileFromPluginToken } from '@/lib/pluginAuth'
 import { getSubmissionTotal } from '@/lib/submissionTotals'
@@ -20,9 +21,14 @@ export async function POST(request: Request) {
     )
   }
 
-  const { itemId, itemName, quantity } = await request.json()
+  const body = await request.json().catch(() => null)
+  const itemId = Number(body?.itemId)
+  const itemName = body?.itemName
+  // Aantal: geheel getal, minimaal 1. Absurd grote waarden (bijv. een stapel coins
+  // of een verzonnen verzoek) knippen we af in plaats van de melding te weigeren.
+  const quantity = Math.min(Math.floor(Number(body?.quantity)), MAX_QUANTITY)
 
-  if (!itemId || !quantity || quantity < 1) {
+  if (!Number.isInteger(itemId) || itemId < 1 || !Number.isFinite(quantity) || quantity < 1) {
     return NextResponse.json({ error: 'Ongeldige melding.' }, { status: 400 })
   }
 

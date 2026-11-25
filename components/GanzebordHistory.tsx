@@ -52,6 +52,8 @@ export default function GanzebordHistory({
               actionText = '📜 strafworp toegewezen'
             } else if (d.method === 'bonus_toegewezen') {
               actionText = '🎁 bonusworp toegewezen'
+            } else if (d.method === 'vrijgave_gewijzigd') {
+              actionText = d.can_roll ? '🔓 vrijgegeven om te gooien' : '🔒 vrijgave ingetrokken'
             } else if (d.method === 'handmatig') {
               actionText = `✏️ handmatig gezet (vak ${d.from} → ${d.to})`
             } else {

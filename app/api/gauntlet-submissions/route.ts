@@ -1,3 +1,4 @@
+import { MAX_QUANTITY } from '@/lib/limits'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getCurrentStageOrder } from '@/lib/gauntletProgress'
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
 
   const { stageId, teamId, participantId, quantity, screenshotUrl } = await request.json()
 
-  if (!stageId || (!teamId && !participantId) || !quantity || quantity < 1) {
+  if (!stageId || (!teamId && !participantId) || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
     return NextResponse.json({ error: 'Ongeldige invoer.' }, { status: 400 })
   }
 
