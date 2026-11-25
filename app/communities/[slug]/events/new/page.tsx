@@ -7,7 +7,7 @@ const EVENT_TYPES = [
   { value: 'bingo', label: 'Bingo' },
   { value: 'ganzebord', label: 'Ganzebord' },
   { value: 'droprace', label: 'Losse Races' },
-  { value: 'gauntlet', label: 'Gauntlet' },
+  { value: 'gauntlet', label: 'Gauntlet — niet gebruiken, onder ontwikkeling' },
   { value: 'pvp_toernooi', label: 'PvP-toernooi' },
 ]
 
@@ -73,6 +73,13 @@ export default function NewEventPage({
             </option>
           ))}
         </select>
+
+        {type === 'gauntlet' && (
+          <p className="text-muted" style={{ fontSize: 13, marginTop: 0, marginBottom: 16 }}>
+            ⚠️ De Gauntlet is nog onder ontwikkeling en werkt nog niet volledig. Gebruik deze
+            spelvorm niet voor een echt event.
+          </p>
+        )}
 
         {error && <p className="error-text">{error}</p>}
 

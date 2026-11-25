@@ -22,6 +22,8 @@ export default async function DashboardPage() {
     console.error('Fout bij ophalen memberships:', membershipsError)
   }
 
+  const isOwner = (memberships ?? []).some((m: any) => m.role === 'owner')
+
   return (
     <main className="container">
       <p className="eyebrow">Jouw communities</p>
@@ -46,11 +48,16 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <Link href="/communities/new">
-        <button className="btn" style={{ marginTop: 20 }}>
-          + Nieuwe community
-        </button>
-      </Link>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
+        <Link href="/communities/new">
+          <button className="btn">+ Nieuwe community</button>
+        </Link>
+        {isOwner && (
+          <Link href="/opdrachten">
+            <button className="btn btn-secondary">📚 Opdrachtenbibliotheek</button>
+          </Link>
+        )}
+      </div>
     </main>
   )
 }

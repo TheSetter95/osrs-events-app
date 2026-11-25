@@ -76,3 +76,18 @@ Bas werkt aan ethisch gebruik van IT in onderwijs en community's; hanteer dat hi
 5. Notificaties of overzicht voor screenshots bij bingo/races/gauntlet nu de bot weg is (bijvoorbeeld teller "te beoordelen" op de eventpagina).
 6. Duplicaatwaarschuwing ook in race- en gauntlet-borden.
 7. Eventueel verhuizen van hosting als Vercel Hobby te krap blijft (Cloudflare of Vercel Pro); houd rekening met de plugin die naar `massiefgoud.vercel.app` wijst.
+
+## Opdrachtenbibliotheek (stap 33)
+- Tabel `assignment_templates`, gedeeld door alle owners van alle communities (ook site-admins). Pagina: `/opdrachten`, API: `/api/assignments`.
+- Iedereen met toegang leest en voegt toe; alleen de maker (of een site-admin) bewerkt of verwijdert.
+- Validatie staat in `lib/assignmentValidation.ts`. `requirement_groups` heeft dezelfde vorm als de tegel-editor: `[{label, quantity, items:[{itemId,itemName}]}]`.
+- Opdrachten worden later als kopie (snapshot) in een event gezet, niet gekoppeld.
+
+## Gepland: Miljoenenjacht (nog niet gebouwd)
+- Spelvorm met koffers (aantal instelbaar, standaard 26), gedeeld door alle teams; elke koffer opent één keer.
+- Teams krijgen een opdrachtenlijst zoals Bingo. Elke voltooide opdracht (plugin of screenshot) = 1 pull = 1 koffer openen.
+- Prijzen vrij per event (gp, items of mix). Geopende koffers zijn openbaar (wie + inhoud), gesloten blijven verborgen.
+- Geen bankier of bod.
+
+## Gauntlet
+- Gepauzeerd: in het nieuwe-event-formulier staat "niet gebruiken, onder ontwikkeling".
