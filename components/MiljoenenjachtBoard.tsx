@@ -99,7 +99,8 @@ export default function MiljoenenjachtBoard({
 
   return (
     <div style={{ marginTop: 24 }}>
-      {/* Stand per team */}
+      {/* Stand per team: niet tonen terwijl het event actief is */}
+      {eventStatus !== 'active' && (
       <div className="panel-dark" style={{ marginBottom: 16 }}>
         <strong>Stand</strong>
         <p className="text-muted" style={{ fontSize: 12, margin: '4px 0 8px' }}>
@@ -136,6 +137,7 @@ export default function MiljoenenjachtBoard({
           </table>
         )}
       </div>
+      )}
 
       {/* Koffers */}
       <div className="panel-dark">
