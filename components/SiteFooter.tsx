@@ -1,23 +1,79 @@
+'use client'
+
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-export default async function SiteFooter() {
-  const supabase = await createClient()
+// De footer draait in de browser in plaats van op de server. Daardoor hoeft de
+// server bij elke pagina niet meer te controleren wie er is ingelogd, en kunnen
+// pagina's met vaste tekst (privacybeleid, voorwaarden) statisch geserveerd worden.
+//
+// Het "Sitebeheer"-linkje is alleen een gemak: de pagina /beheer controleert zelf
+// op de server of je super-admin bent.
+const CACHE_KEY = 'mg_super_admin_check'
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+export default function SiteFooter() {
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
-  let isSuperAdmin = false
+  useEffect(() => {
+    const supabase = createClient()
+    let cancelled = false
 
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_super_admin')
-      .eq('id', user.id)
-      .single()
-    isSuperAdmin = !!profile?.is_super_admin
-  }
+    async function check() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!session) {
+          if (!cancelled) setIsSuperAdmin(false)
+          try {
+            sessionStorage.removeItem(CACHE_KEY)
+          } catch {}
+          return
+        }
+
+        const userId = session.user.id
+
+        // Eenmaal per browsersessie opvragen en onthouden.
+        try {
+          const cached = sessionStorage.getItem(CACHE_KEY)
+          if (cached && cached.startsWith(userId + ':')) {
+            if (!cancelled) setIsSuperAdmin(cached.endsWith(':1'))
+            return
+          }
+        } catch {}
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_super_admin')
+          .eq('id', userId)
+          .single()
+
+        const value = !!profile?.is_super_admin
+        if (!cancelled) setIsSuperAdmin(value)
+        try {
+          sessionStorage.setItem(CACHE_KEY, `${userId}:${value ? '1' : '0'}`)
+        } catch {}
+      } catch {
+        if (!cancelled) setIsSuperAdmin(false)
+      }
+    }
+
+    check()
+
+    // Bij in- of uitloggen zonder paginavernieuwing de status bijwerken.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      check()
+    })
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
+  }, [])
 
   return (
     <footer
