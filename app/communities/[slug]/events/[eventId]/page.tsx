@@ -19,10 +19,16 @@ import DropRaceManager from '@/components/DropRaceManager'
 import GauntletBoard from '@/components/GauntletBoard'
 import GauntletManager from '@/components/GauntletManager'
 import GauntletConfigForm from '@/components/GauntletConfigForm'
+import MiljoenenjachtBoard from '@/components/MiljoenenjachtBoard'
+import MiljoenenjachtConfigForm from '@/components/MiljoenenjachtConfigForm'
+import MiljoenenjachtPrizesManager from '@/components/MiljoenenjachtPrizesManager'
+import MiljoenenjachtAssignments from '@/components/MiljoenenjachtAssignments'
+import LibraryFillButton from '@/components/LibraryFillButton'
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   bingo: 'Bingo',
   ganzebord: 'Ganzebord',
+  miljoenenjacht: 'Miljoenenjacht',
   droprace: 'Losse Races',
   gauntlet: 'Gauntlet',
   pvp_toernooi: 'PvP-toernooi',
@@ -67,6 +73,7 @@ export default async function EventPage({
   const isBingo = event.type === 'bingo'
   const isRace = event.type === 'droprace'
   const isGauntlet = event.type === 'gauntlet'
+  const isMj = event.type === 'miljoenenjacht'
 
   async function profileNames(ids: (string | null | undefined)[]) {
     const unique = [...new Set(ids.filter(Boolean))] as string[]
@@ -268,6 +275,78 @@ export default async function EventPage({
     }))
   }
 
+  // --- Miljoenenjacht ---
+  const mjCaseCount = Number((event.config as any)?.caseCount) || 26
+  const mjAssignmentCount = Number((event.config as any)?.assignmentCount) || mjCaseCount
+  let mjAssignmentsWithRequirements: any[] = []
+  let mjSubmissions: any[] = []
+  let mjCompletions: any[] = []
+  let mjCases: any[] = []
+  let mjPrizes: any[] = []
+
+  if (isMj) {
+    const { data: mjAssignments } = await supabase.from('mj_assignments').select('*').eq('event_id', event.id)
+    const mjIds = (mjAssignments ?? []).length > 0 ? (mjAssignments ?? []).map((a: any) => a.id) : [NONE]
+
+    const [{ data: mjReqs }, { data: completionRows }, { data: caseRows }] = await Promise.all([
+      supabase.from('mj_assignment_requirements').select('*').in('assignment_id', mjIds),
+      supabase.from('mj_completions').select('assignment_id, team_id').in('assignment_id', mjIds),
+      supabase
+        .from('mj_cases')
+        .select('id, case_number, opened_at, opened_by_team_id, revealed_label, revealed_gp')
+        .eq('event_id', event.id)
+        .order('case_number', { ascending: true }),
+    ])
+    mjCompletions = completionRows ?? []
+    mjCases = caseRows ?? []
+
+    const mjReqIds = (mjReqs ?? []).map((r: any) => r.id)
+    const mjReqIdsOrNone = mjReqIds.length > 0 ? mjReqIds : [NONE]
+
+    const [{ data: mjAccepted }, { data: rawMjSubmissions }] = await Promise.all([
+      supabase.from('mj_requirement_accepted_items').select('*').in('requirement_id', mjReqIdsOrNone),
+      supabase
+        .from('mj_item_submissions')
+        .select('*')
+        .in('requirement_id', mjReqIdsOrNone)
+        .order('created_at', { ascending: false }),
+    ])
+
+    const mjReqsWithItems = (mjReqs ?? []).map((r: any) => ({
+      ...r,
+      accepted_items: (mjAccepted ?? []).filter((a: any) => a.requirement_id === r.id),
+    }))
+    mjAssignmentsWithRequirements = (mjAssignments ?? []).map((a: any) => ({
+      ...a,
+      requirements: mjReqsWithItems.filter((r: any) => r.assignment_id === a.id),
+    }))
+
+    const names = await profileNames((rawMjSubmissions ?? []).map((x: any) => x.submitted_by))
+    mjSubmissions = (rawMjSubmissions ?? []).map((x: any) => ({
+      ...x,
+      submitterName: names[x.submitted_by] ?? 'Onbekend',
+    }))
+
+    // De geheime inhoud lezen alleen organizers/owners (spelers krijgen dit door RLS nooit te zien)
+    if (canManage && mjCases.length > 0) {
+      const { data: prizeRows } = await supabase
+        .from('mj_case_prizes')
+        .select('case_id, label, gp_value')
+        .in('case_id', mjCases.map((c: any) => c.id))
+      mjPrizes = (prizeRows ?? []).map((pr: any) => {
+        const c = mjCases.find((x: any) => x.id === pr.case_id)
+        return {
+          case_number: c?.case_number,
+          label: pr.label,
+          gp_value: pr.gp_value,
+          opened: !!c?.opened_at,
+        }
+      })
+    }
+  }
+
+  const isOwnerRole = membership?.role === 'owner'
+
   const gauntletMode: 'team' | 'individual' = (event.config as any)?.mode === 'individual' ? 'individual' : 'team'
 
   // Grote-bord-weergave: alleen voor een actief Ganzebord-event
@@ -436,6 +515,7 @@ export default async function EventPage({
                       eventId={event.id}
                       boardSize={(event.config as any)?.boardSize ?? 63}
                       initialTiles={(tilesWithRequirements as any) ?? []}
+                      canUseLibrary={isOwnerRole}
                     />
                   </div>
                 </details>
@@ -461,8 +541,10 @@ export default async function EventPage({
                   eventId={event.id}
                   boardSize={(event.config as any)?.boardSize ?? 63}
                   initialTiles={(tilesWithRequirements as any) ?? []}
+                  canUseLibrary={isOwnerRole}
                 />
               )}
+              {isOwnerRole && event.status === 'draft' && <LibraryFillButton eventId={event.id} />}
               <GanzebordHistory
                 history={(history as any) ?? []}
                 teams={(teams as any) ?? []}
@@ -534,10 +616,111 @@ export default async function EventPage({
           })}
 
           {canManage && (
+            <>
+              {isOwnerRole && event.status === 'draft' && <LibraryFillButton eventId={event.id} />}
+              <BingoTilesManager
+                eventId={event.id}
+                gridSize={(event.config as any)?.gridSize ?? 5}
+                initialTiles={(bingoTilesWithRequirements as any) ?? []}
+                libraryGame={isOwnerRole ? 'bingo' : undefined}
+              />
+            </>
+          )}
+        </>
+      )}
+
+      {event.type === 'miljoenenjacht' && (
+        <>
+          {canManage && (
+            <MiljoenenjachtConfigForm
+              eventId={event.id}
+              currentCaseCount={mjCaseCount}
+              currentAssignmentCount={mjAssignmentCount}
+              locked={event.status !== 'draft'}
+            />
+          )}
+
+          <MiljoenenjachtBoard
+            eventId={event.id}
+            eventStatus={event.status}
+            cases={mjCases.map((c: any) => ({
+              case_number: c.case_number,
+              opened_at: c.opened_at,
+              opened_by_team_id: c.opened_by_team_id,
+              revealed_label: c.revealed_label,
+              revealed_gp: c.revealed_gp,
+            }))}
+            teams={(teams as any) ?? []}
+            completions={mjCompletions}
+            myTeamIds={myTeamIds}
+            canManage={canManage}
+          />
+
+          <MiljoenenjachtAssignments
+            assignments={mjAssignmentsWithRequirements}
+            teams={(teams as any) ?? []}
+            completions={mjCompletions}
+            canManage={canManage}
+            eventStatus={event.status}
+          />
+
+          {((teams as any) ?? []).map((team: any) => {
+            const openAssignments = mjAssignmentsWithRequirements.filter(
+              (a) =>
+                a.effect_type === 'verzamel_item' &&
+                a.requirements?.length > 0 &&
+                !mjCompletions.some((c) => c.assignment_id === a.id && c.team_id === team.id)
+            )
+            if (openAssignments.length === 0) return null
+
+            return (
+              <div key={team.id} style={{ marginTop: 16 }}>
+                <h3 style={{ fontSize: 15, margin: '0 0 4px' }}>Openstaande verzameldoelen — {team.name}</h3>
+                {openAssignments.map((a) => {
+                  const reqIds = a.requirements.map((r: any) => r.id)
+                  const teamSubmissions = mjSubmissions.filter(
+                    (s) => reqIds.includes(s.requirement_id) && s.team_id === team.id
+                  )
+                  return (
+                    <div key={a.id} style={{ marginBottom: 10 }}>
+                      <p className="text-muted" style={{ fontSize: 13, margin: '0 0 4px' }}>
+                        Opdracht {a.position}: {a.title}
+                      </p>
+                      <ItemSubmissionsPanel
+                        requirements={a.requirements}
+                        submissions={teamSubmissions as any}
+                        teamId={team.id}
+                        canSubmit={myTeamIds.includes(team.id)}
+                        isOwner={isOwnerRole}
+                        apiBasePath="/api/mj-item-submissions"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+
+          {canManage && (
+            <MiljoenenjachtPrizesManager
+              key={`${mjCaseCount}-${mjPrizes.length}`}
+              eventId={event.id}
+              caseCount={mjCaseCount}
+              initialPrizes={mjPrizes}
+              eventStatus={event.status}
+            />
+          )}
+
+          {isOwnerRole && event.status === 'draft' && <LibraryFillButton eventId={event.id} />}
+
+          {canManage && (
             <BingoTilesManager
               eventId={event.id}
-              gridSize={(event.config as any)?.gridSize ?? 5}
-              initialTiles={(bingoTilesWithRequirements as any) ?? []}
+              initialTiles={mjAssignmentsWithRequirements as any}
+              apiBasePath="/api/mj-assignments"
+              totalTilesOverride={mjAssignmentCount}
+              heading="Opdrachten beheren"
+              libraryGame={isOwnerRole ? 'miljoenenjacht' : undefined}
             />
           )}
         </>

@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import LibraryPicker, { PickedAssignment } from '@/components/LibraryPicker'
 
 type AcceptedItem = { item_id: number; item_name: string }
 
@@ -51,10 +52,12 @@ export default function GanzebordTilesManager({
   eventId,
   boardSize,
   initialTiles,
+  canUseLibrary = false,
 }: {
   eventId: string
   boardSize: number
   initialTiles: Tile[]
+  canUseLibrary?: boolean
 }) {
   const router = useRouter()
   const [tileNumber, setTileNumber] = useState(1)
@@ -177,6 +180,24 @@ export default function GanzebordTilesManager({
     document.getElementById('ganzebord-tile-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
+  // Een opdracht uit de bibliotheek in het formulier zetten (kopie, nog aan te passen).
+  // Ganzebord heeft één tekstveld, dus titel en omschrijving worden samengevoegd.
+  function applyPicked(a: PickedAssignment) {
+    setDescription(`${a.title}: ${a.description}`)
+    setWikiUrl(a.wiki_url ?? '')
+    setEffectType(a.kind === 'verzamel_item' ? 'verzamel_item' : 'geen')
+    setGroups(
+      a.kind === 'verzamel_item' && a.requirement_groups.length > 0
+        ? a.requirement_groups.map((gr) => ({
+            label: gr.label,
+            quantity: gr.quantity,
+            useAlternatives: gr.items.length > 1,
+            items: gr.items.map((i) => ({ itemId: String(i.itemId), itemName: i.itemName })),
+          }))
+        : [EMPTY_DRAFT_GROUP()]
+    )
+  }
+
   function handleCancelEdit() {
     setEditingTileId(null)
     setTileNumber(1)
@@ -257,6 +278,8 @@ export default function GanzebordTilesManager({
             ✏️ Je bewerkt nu vak {tileNumber} — sla op om de wijzigingen te bevestigen.
           </p>
         )}
+
+        {canUseLibrary && <LibraryPicker gameType="ganzebord" onPick={applyPicked} />}
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <label className="field-label" style={{ margin: 0 }}>Vakje nr.</label>

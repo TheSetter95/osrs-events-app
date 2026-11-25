@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import LibraryPicker, { PickedAssignment } from '@/components/LibraryPicker'
 
 type AcceptedItem = { item_id: number; item_name: string }
 
@@ -37,15 +38,25 @@ const EMPTY_DRAFT_GROUP = (): DraftGroup => ({
 
 export default function BingoTilesManager({
   eventId,
-  gridSize,
+  gridSize = 5,
   initialTiles,
+  apiBasePath = '/api/bingo-tiles',
+  totalTilesOverride,
+  heading = 'Vakjes / opdrachten',
+  libraryGame,
 }: {
   eventId: string
-  gridSize: number
+  gridSize?: number
   initialTiles: Tile[]
+  // Hergebruikt voor Miljoenenjacht: andere API en een vrij aantal opdrachten
+  apiBasePath?: string
+  totalTilesOverride?: number
+  heading?: string
+  // Als dit gezet is (alleen voor owners), tonen we de knop "Kies uit bibliotheek"
+  libraryGame?: 'bingo' | 'miljoenenjacht'
 }) {
   const router = useRouter()
-  const totalTiles = gridSize * gridSize
+  const totalTiles = totalTilesOverride ?? gridSize * gridSize
   const [position, setPosition] = useState(1)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -91,7 +102,7 @@ export default function BingoTilesManager({
     setError(null)
     setLoading(true)
 
-    const res = await fetch('/api/bingo-tiles', {
+    const res = await fetch(apiBasePath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -127,7 +138,7 @@ export default function BingoTilesManager({
 
   async function handleDelete(tileId: string) {
     if (!confirm('Dit vakje verwijderen?')) return
-    await fetch(`/api/bingo-tiles/${tileId}`, { method: 'DELETE' })
+    await fetch(`${apiBasePath}/${tileId}`, { method: 'DELETE' })
     if (editingTileId === tileId) handleCancelEdit()
     router.refresh()
   }
@@ -156,6 +167,24 @@ export default function BingoTilesManager({
     document.getElementById('bingo-tile-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
+  // Een opdracht uit de bibliotheek in het formulier zetten (kopie, nog aan te passen)
+  function applyPicked(a: PickedAssignment) {
+    setTitle(a.title)
+    setDescription(a.description)
+    setWikiUrl(a.wiki_url ?? '')
+    setEffectType(a.kind === 'verzamel_item' ? 'verzamel_item' : 'geen')
+    setGroups(
+      a.kind === 'verzamel_item' && a.requirement_groups.length > 0
+        ? a.requirement_groups.map((g) => ({
+            label: g.label,
+            quantity: g.quantity,
+            useAlternatives: g.items.length > 1,
+            items: g.items.map((i) => ({ itemId: String(i.itemId), itemName: i.itemName })),
+          }))
+        : [EMPTY_DRAFT_GROUP()]
+    )
+  }
+
   function handleCancelEdit() {
     setEditingTileId(null)
     setPosition(1)
@@ -169,7 +198,7 @@ export default function BingoTilesManager({
 
   return (
     <div className="panel-dark" style={{ marginTop: 20 }}>
-      <strong>Vakjes / opdrachten</strong>
+      <strong>{heading}</strong>
       <p className="text-muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>
         {initialTiles.length} / {totalTiles} vakjes ingevuld
       </p>
@@ -233,6 +262,8 @@ export default function BingoTilesManager({
             ✏️ Je bewerkt nu vak {position} — sla op om de wijzigingen te bevestigen.
           </p>
         )}
+
+        {libraryGame && <LibraryPicker gameType={libraryGame} onPick={applyPicked} />}
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <label className="field-label" style={{ margin: 0 }}>

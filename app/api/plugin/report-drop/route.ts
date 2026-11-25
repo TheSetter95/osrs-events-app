@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfileFromPluginToken } from '@/lib/pluginAuth'
 import { getSubmissionTotal } from '@/lib/submissionTotals'
 import { getBingoSubmissionTotal, syncBingoTileCompletion } from '@/lib/bingoSubmissionTotals'
+import { getMjSubmissionTotal, syncMjAssignmentCompletion } from '@/lib/mjSubmissionTotals'
 import { recomputeRaceStatus } from '@/lib/recomputeRaceStatus'
 import { getCurrentStageOrder } from '@/lib/gauntletProgress'
 
@@ -185,6 +186,58 @@ export async function POST(request: Request) {
         await syncBingoTileCompletion(bingoTile.id, team.id)
         matchedCount++
         updates.push({ type: 'bingo', team: team.name, item: requirement.label })
+      }
+    }
+
+    // --- MILJOENENJACHT (opdrachtenlijst, geen positie-eis; elke voltooide opdracht = 1 pull) ---
+    if (event.type === 'miljoenenjacht') {
+      const { data: mjAssignments } = await supabaseAdmin
+        .from('mj_assignments')
+        .select('id')
+        .eq('event_id', event.id)
+        .eq('effect_type', 'verzamel_item')
+
+      for (const assignment of mjAssignments ?? []) {
+        const { data: existingCompletion } = await supabaseAdmin
+          .from('mj_completions')
+          .select('id')
+          .eq('assignment_id', assignment.id)
+          .eq('team_id', team.id)
+          .maybeSingle()
+        if (existingCompletion) continue
+
+        const { data: requirements } = await supabaseAdmin
+          .from('mj_assignment_requirements')
+          .select('id, label, required_quantity')
+          .eq('assignment_id', assignment.id)
+
+        const { data: acceptedItems } = await supabaseAdmin
+          .from('mj_requirement_accepted_items')
+          .select('requirement_id, item_id, item_name')
+          .in('requirement_id', (requirements ?? []).map((r) => r.id))
+
+        const matchedAcceptedItem = (acceptedItems ?? []).find((a) => a.item_id === Number(itemId))
+        const requirement = matchedAcceptedItem
+          ? (requirements ?? []).find((r) => r.id === matchedAcceptedItem.requirement_id)
+          : null
+
+        if (!requirement) continue
+
+        const currentTotal = await getMjSubmissionTotal(requirement.id, team.id)
+        if (currentTotal >= requirement.required_quantity) continue
+
+        const amountToLog = Math.min(quantity, requirement.required_quantity - currentTotal)
+        await supabaseAdmin.from('mj_item_submissions').insert({
+          requirement_id: requirement.id,
+          team_id: team.id,
+          quantity: amountToLog,
+          source: 'plugin',
+          status: 'confirmed',
+          submitted_by: profile.id,
+        })
+        await syncMjAssignmentCompletion(assignment.id, team.id)
+        matchedCount++
+        updates.push({ type: 'miljoenenjacht', team: team.name, item: requirement.label })
       }
     }
 

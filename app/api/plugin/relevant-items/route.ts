@@ -70,6 +70,9 @@ export async function GET(request: Request) {
     // Bingo
     collect(idsOfType('bingo'), 'bingo_tiles', 'event_id', 'bingo_tile_requirements', 'tile_id',
       'bingo_requirement_accepted_items', 'requirement_id'),
+    // Miljoenenjacht
+    collect(idsOfType('miljoenenjacht'), 'mj_assignments', 'event_id', 'mj_assignment_requirements', 'assignment_id',
+      'mj_requirement_accepted_items', 'requirement_id'),
     // Losse Races: races -> accepted items
     collect(idsOfType('droprace'), 'drop_races', 'event_id', '', '', 'drop_race_accepted_items', 'race_id'),
     // Gauntlet: stages -> accepted items
